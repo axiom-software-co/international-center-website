@@ -1,6 +1,9 @@
+using SharedPlatform.Features.ResultHandling;
+
 namespace SharedPlatform.Features.Configuration.Abstractions;
 
 public interface IOptionsProvider
 {
-    // TODO: Add interface members
+    Result<T> GetOptions<T>() where T : class, new();
+    Result ValidateOptions<T>(T options);
 }

@@ -1,9 +1,10 @@
 namespace SharedPlatform.Features.Configuration.Options;
 
-public class FeatureFlags
+public class FeatureFlag
 {
-    public FeatureFlags()
-    {
-        throw new NotImplementedException();
-    }
+    public string Name { get; set; } = string.Empty;
+    public bool IsEnabled { get; set; }
+    public Dictionary<string, object>? Context { get; set; }
+    public DateTime? ExpiryDate { get; set; }
+    public string? Description { get; set; }
 }

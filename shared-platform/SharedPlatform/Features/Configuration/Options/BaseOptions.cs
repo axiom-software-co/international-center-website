@@ -1,6 +1,11 @@
+using SharedPlatform.Features.ResultHandling;
+
 namespace SharedPlatform.Features.Configuration.Options;
 
-public class BaseOptions
+public abstract class BaseOptions
 {
-    // TODO: Add configuration properties
+    public virtual Result Validate()
+    {
+        return Result.Success();
+    }
 }
