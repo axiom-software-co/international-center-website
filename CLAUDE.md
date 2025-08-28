@@ -197,6 +197,7 @@
 - do not change the UI of our website unless explicitly asked to
 - do not create simple ephimeral validation implementations in /temp/ directories to avoid disorder in source files
 - do not creaate script files for projects ( this is an anti-pattern )
+- do not stage and commit and push unless I explicitly ask you to
 
 # Task Management Context Guidelines
 
