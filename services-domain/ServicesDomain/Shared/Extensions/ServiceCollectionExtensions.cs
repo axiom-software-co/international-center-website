@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using ServicesDomain.Features.GetService;
+using ServicesDomain.Features.GetServiceBySlug;
 using ServicesDomain.Features.ServiceManagement.Domain.Repository;
 using ServicesDomain.Shared.Configuration;
 using ServicesDomain.Shared.Infrastructure.Data;
@@ -75,6 +76,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<GetServiceHandler>();
         services.AddScoped<IValidator<GetServiceQuery>, GetServiceQueryValidator>();
         
+        // GetServiceBySlug feature - Public API with Dapper optimization
+        services.AddScoped<GetServiceBySlugHandler>();
+        services.AddScoped<IValidator<GetServiceBySlugQuery>, GetServiceBySlugValidator>();
+        
         // Repository - EF Core implementation for admin APIs (medical-grade audit trails)
         services.AddScoped<IServiceRepository, EfServiceRepository>();
         
@@ -130,6 +135,7 @@ public static class ServiceCollectionExtensions
         
         // FluentValidation configuration
         services.AddValidatorsFromAssemblyContaining<GetServiceQueryValidator>(ServiceLifetime.Scoped);
+        services.AddValidatorsFromAssemblyContaining<GetServiceBySlugValidator>(ServiceLifetime.Scoped);
         
         // Health checks for database connectivity
         services.AddHealthChecks()

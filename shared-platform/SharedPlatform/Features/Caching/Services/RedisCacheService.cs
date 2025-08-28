@@ -17,6 +17,34 @@ public sealed class RedisCacheService : ICacheService
     private readonly ILogger<RedisCacheService> _logger;
     private readonly JsonSerializerOptions _jsonOptions;
     
+    private static readonly Action<ILogger, string> _logCacheMiss =
+        LoggerMessage.Define<string>(LogLevel.Debug, new EventId(1001, "CacheMiss"),
+            "Cache miss for key: {CacheKey}");
+            
+    private static readonly Action<ILogger, string> _logCacheHit =
+        LoggerMessage.Define<string>(LogLevel.Debug, new EventId(1002, "CacheHit"),
+            "Cache hit for key: {CacheKey}");
+            
+    private static readonly Action<ILogger, string, Exception?> _logCacheGetError =
+        LoggerMessage.Define<string>(LogLevel.Error, new EventId(1003, "CacheGetError"),
+            "Error retrieving value from cache for key: {CacheKey}");
+            
+    private static readonly Action<ILogger, string> _logCacheSetSuccess =
+        LoggerMessage.Define<string>(LogLevel.Debug, new EventId(1004, "CacheSetSuccess"),
+            "Successfully cached value for key: {CacheKey}");
+            
+    private static readonly Action<ILogger, string, Exception?> _logCacheSetError =
+        LoggerMessage.Define<string>(LogLevel.Error, new EventId(1005, "CacheSetError"),
+            "Error setting cache value for key: {CacheKey}");
+            
+    private static readonly Action<ILogger, string> _logCacheExistsResult =
+        LoggerMessage.Define<string>(LogLevel.Debug, new EventId(1006, "CacheExistsResult"),
+            "Cache exists check for key: {CacheKey}");
+            
+    private static readonly Action<ILogger, string, Exception?> _logCacheExistsError =
+        LoggerMessage.Define<string>(LogLevel.Error, new EventId(1007, "CacheExistsError"),
+            "Error checking cache existence for key: {CacheKey}");
+    
     public RedisCacheService(MicrosoftDistributedCache distributedCache, ILogger<RedisCacheService> logger)
     {
         _distributedCache = distributedCache ?? throw new ArgumentNullException(nameof(distributedCache));
@@ -37,16 +65,16 @@ public sealed class RedisCacheService : ICacheService
         
         try
         {
-            var cachedValue = await _distributedCache.GetStringAsync(key, cancellationToken);
+            var cachedValue = await _distributedCache.GetStringAsync(key, cancellationToken).ConfigureAwait(false);
             
             if (string.IsNullOrEmpty(cachedValue))
             {
-                _logger.LogDebug("Cache miss for key: {CacheKey}", key);
+                _logCacheMiss(_logger, key);
                 return null;
             }
             
             var deserializedValue = JsonSerializer.Deserialize<T>(cachedValue, _jsonOptions);
-            _logger.LogDebug("Cache hit for key: {CacheKey}", key);
+            _logCacheHit(_logger, key);
             return deserializedValue;
         }
         catch (JsonException ex)
@@ -58,7 +86,7 @@ public sealed class RedisCacheService : ICacheService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error retrieving cached value for key: {CacheKey}", key);
+            _logCacheGetError(_logger, key, ex);
             return null; // Graceful degradation - don't fail the request
         }
     }

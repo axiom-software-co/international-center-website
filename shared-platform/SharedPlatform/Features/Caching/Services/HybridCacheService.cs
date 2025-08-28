@@ -12,6 +12,34 @@ public sealed class HybridCacheService : ICacheService
     private readonly ICacheService _primaryCache;
     private readonly ICacheService _fallbackCache;
     private readonly ILogger<HybridCacheService> _logger;
+    
+    private static readonly Action<ILogger, string, Exception?> _logPrimaryCacheFailed =
+        LoggerMessage.Define<string>(LogLevel.Warning, new EventId(1001, "PrimaryCacheFailed"),
+            "Primary cache (Redis) failed for GET operation on key: {CacheKey}, falling back to in-memory cache");
+            
+    private static readonly Action<ILogger, string, Exception?> _logBothCachesFailed =
+        LoggerMessage.Define<string>(LogLevel.Error, new EventId(1002, "BothCachesFailed"),
+            "Both primary and fallback cache failed for GET operation on key: {CacheKey}");
+            
+    private static readonly Action<ILogger, string, Exception?> _logPrimaryCacheSetFailed =
+        LoggerMessage.Define<string>(LogLevel.Warning, new EventId(1003, "PrimaryCacheSetFailed"),
+            "Primary cache (Redis) failed for SET operation on key: {CacheKey}, falling back to in-memory cache");
+            
+    private static readonly Action<ILogger, string, Exception?> _logBothCachesSetFailed =
+        LoggerMessage.Define<string>(LogLevel.Error, new EventId(1004, "BothCachesSetFailed"),
+            "Both primary and fallback cache failed for SET operation on key: {CacheKey}");
+            
+    private static readonly Action<ILogger, string, Exception?> _logPrimaryCacheExistsFailed =
+        LoggerMessage.Define<string>(LogLevel.Warning, new EventId(1005, "PrimaryCacheExistsFailed"),
+            "Primary cache (Redis) failed for EXISTS operation on key: {CacheKey}, falling back to in-memory cache");
+            
+    private static readonly Action<ILogger, string, Exception?> _logBothCachesExistsFailed =
+        LoggerMessage.Define<string>(LogLevel.Error, new EventId(1006, "BothCachesExistsFailed"),
+            "Both primary and fallback cache failed for EXISTS operation on key: {CacheKey}");
+            
+    private static readonly Action<ILogger, string> _logFallbackCacheUsed =
+        LoggerMessage.Define<string>(LogLevel.Warning, new EventId(1007, "FallbackCacheUsed"),
+            "Using fallback cache for key: {CacheKey} due to primary cache failure");
 
     public HybridCacheService(
         RedisCacheService primaryCache,
@@ -28,7 +56,7 @@ public sealed class HybridCacheService : ICacheService
         try
         {
             // Try Redis first for distributed cache consistency
-            var result = await _primaryCache.GetAsync<T>(key, cancellationToken);
+            var result = await _primaryCache.GetAsync<T>(key, cancellationToken).ConfigureAwait(false);
             if (result != null)
             {
                 return result;
@@ -36,17 +64,17 @@ public sealed class HybridCacheService : ICacheService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Primary cache (Redis) failed for GET operation on key: {CacheKey}, falling back to in-memory cache", key);
+            _logPrimaryCacheFailed(_logger, key, ex);
         }
 
         try
         {
             // Fallback to in-memory cache
-            return await _fallbackCache.GetAsync<T>(key, cancellationToken);
+            return await _fallbackCache.GetAsync<T>(key, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Both primary and fallback cache failed for GET operation on key: {CacheKey}", key);
+            _logBothCachesFailed(_logger, key, ex);
             return null; // Graceful degradation for medical systems
         }
     }
@@ -59,23 +87,23 @@ public sealed class HybridCacheService : ICacheService
         // Try to set in Redis first
         try
         {
-            await _primaryCache.SetAsync(key, value, expiration, cancellationToken);
+            await _primaryCache.SetAsync(key, value, expiration, cancellationToken).ConfigureAwait(false);
             primarySuccess = true;
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Primary cache (Redis) failed for SET operation on key: {CacheKey}", key);
+            _logPrimaryCacheSetFailed(_logger, key, ex);
         }
 
         // Always try to set in fallback cache for consistency
         try
         {
-            await _fallbackCache.SetAsync(key, value, expiration, cancellationToken);
+            await _fallbackCache.SetAsync(key, value, expiration, cancellationToken).ConfigureAwait(false);
             fallbackSuccess = true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Fallback cache failed for SET operation on key: {CacheKey}", key);
+            _logBothCachesSetFailed(_logger, key, ex);
         }
 
         // For medical-grade systems, at least one cache must succeed
@@ -86,7 +114,7 @@ public sealed class HybridCacheService : ICacheService
 
         if (!primarySuccess)
         {
-            _logger.LogWarning("Only fallback cache succeeded for SET operation on key: {CacheKey}", key);
+            _logFallbackCacheUsed(_logger, key);
         }
     }
 
@@ -106,19 +134,19 @@ public sealed class HybridCacheService : ICacheService
         try
         {
             // Check Redis first for distributed consistency
-            return await _primaryCache.ExistsAsync(key, cancellationToken);
+            return await _primaryCache.ExistsAsync(key, cancellationToken).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Primary cache (Redis) failed for EXISTS operation on key: {CacheKey}, checking fallback cache", key);
+            _logPrimaryCacheExistsFailed(_logger, key, ex);
             
             try
             {
-                return await _fallbackCache.ExistsAsync(key, cancellationToken);
+                return await _fallbackCache.ExistsAsync(key, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception fallbackEx)
             {
-                _logger.LogError(fallbackEx, "Both caches failed for EXISTS operation on key: {CacheKey}", key);
+                _logBothCachesExistsFailed(_logger, key, fallbackEx);
                 return false;
             }
         }
