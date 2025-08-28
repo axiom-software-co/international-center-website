@@ -16,6 +16,11 @@ public interface IService
     string CreatedBy { get; }
     DateTime CreatedAt { get; }
     DateTime UpdatedAt { get; }
+    
+    // Content management properties
+    string? ContentUrl { get; set; }
+    string? ContentHash { get; set; }
+    DateTimeOffset? LastContentUpdate { get; set; }
 }
 
 /// <summary>

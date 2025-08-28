@@ -26,6 +26,11 @@ public sealed class ServiceEntity : IService
     public DateTime? ModifiedOn { get; set; }
     public string? ModifiedBy { get; set; }
     
+    // Content management properties
+    public string? ContentUrl { get; set; }
+    public string? ContentHash { get; set; }
+    public DateTimeOffset? LastContentUpdate { get; set; }
+    
     // Soft delete fields
     public bool IsDeleted { get; set; } = false;
     public DateTime? DeletedOn { get; set; }
@@ -60,6 +65,11 @@ public sealed class ServiceAuditEntity
     public int? OrderNumber { get; set; }
     public string? DeliveryMode { get; set; }
     public string? PublishingStatus { get; set; }
+    
+    // Content management properties snapshot
+    public string? ContentUrl { get; set; }
+    public string? ContentHash { get; set; }
+    public DateTimeOffset? LastContentUpdate { get; set; }
     
     // Audit fields snapshot
     public DateTime? CreatedOn { get; set; }

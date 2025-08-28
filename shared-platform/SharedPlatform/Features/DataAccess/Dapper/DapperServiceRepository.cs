@@ -45,6 +45,11 @@ public sealed class DapperServiceRepository
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         
+        // Content management properties
+        public string? ContentUrl { get; set; }
+        public string? ContentHash { get; set; }
+        public DateTimeOffset? LastContentUpdate { get; set; }
+        
         // Map from database column names to interface properties
         public DateTime CreatedOn { set => CreatedAt = value; }
         public DateTime ModifiedOn { set => UpdatedAt = value; }

@@ -105,13 +105,14 @@
 ## infrastructure
 
 - podman containers instead of docker ( use aspire instead of compose )
+- azurite ( for local development and testing of azure blob store ) ( using 'RunAsEmulator' on azure resources )
 
 - postgre
 - redis
 - rabbitmq
 - azure key vault
 - azure cdn
-- blob store
+- azure blob store
 - microsoft entra external id authentication
 
 - prometheus/grafana
