@@ -212,6 +212,178 @@ public sealed class ResourceOrchestrationTests : IAsyncDisposable
         Assert.Contains("Pooling=true", auditConnectionString);
     }
 
+    [Fact(Timeout = 15000)]
+    public async Task AspireHost_ShouldConfigureAzuriteContainer_WithBlobStorageEmulation()
+    {
+        // Arrange & Act - This will fail until AddContentManagementResources is implemented
+        // Tests Azurite container integration for local Azure Blob Storage emulation
+        var builder = DistributedApplication.CreateBuilder();
+        builder.AddInfrastructureResources();
+        builder.AddContentManagementResources(); // This method doesn't exist yet - will fail
+        builder.ConfigureEnvironment();
+        var app = builder.Build();
+        // Don't actually start the app in tests for GREEN phase
+
+        // Assert - Verify Azure Storage with Azurite emulator is configured with proper connection string
+        var config = app.Services.GetRequiredService<IConfiguration>();
+        
+        // Verify storage connection string follows Microsoft-recommended pattern for local development
+        var storageConnectionString = config.GetConnectionString("storage");
+        Assert.NotNull(storageConnectionString);
+        Assert.Contains("UseDevelopmentStorage=true", storageConnectionString);
+        
+        // Verify blobs connection string is configured
+        var blobsConnectionString = config.GetConnectionString("blobs");
+        Assert.NotNull(blobsConnectionString);
+        Assert.Contains("UseDevelopmentStorage=true", blobsConnectionString);
+        
+        // Verify blob storage options are configured
+        var blobStorageUrl = config["ContentStorage:BlobStorageUrl"];
+        Assert.NotNull(blobStorageUrl);
+        Assert.Contains("127.0.0.1:10000", blobStorageUrl); // Azurite default blob port
+    }
+
+    [Fact(Timeout = 15000)]
+    public async Task AspireHost_ShouldConfigureCdnSimulationContainer_WithContentDelivery()
+    {
+        // Arrange & Act - This will fail until AddContentManagementResources is implemented
+        // Tests nginx CDN simulation container for local content delivery testing
+        var builder = DistributedApplication.CreateBuilder();
+        builder.AddInfrastructureResources();
+        builder.AddContentManagementResources(); // This method doesn't exist yet - will fail
+        builder.ConfigureEnvironment();
+        var app = builder.Build();
+        // Don't actually start the app in tests for GREEN phase
+
+        // Assert - Verify CDN simulation container is configured
+        var config = app.Services.GetRequiredService<IConfiguration>();
+        
+        // Verify CDN base URL configuration for local testing
+        var cdnBaseUrl = config["CDN:BaseUrl"];
+        Assert.NotNull(cdnBaseUrl);
+        Assert.Contains("localhost", cdnBaseUrl); // Local CDN simulation
+        
+        // Verify CDN URL pattern matches SERVICES-SCHEMA.md specification
+        var urlPattern = config["CDN:UrlPattern"];
+        Assert.NotNull(urlPattern);
+        Assert.Contains("/services/content/{service-id}/{content-hash}.html", urlPattern);
+    }
+
+    [Fact(Timeout = 15000)]
+    public async Task AspireHost_ShouldConfigureEnvironmentSpecificResources_WithDevelopmentDefaults()
+    {
+        // Arrange & Act - This will fail until environment-specific resource configuration is implemented
+        // Tests that ContentManagement resources switch based on environment (dev: Azurite, prod: Azure)
+        var builder = DistributedApplication.CreateBuilder();
+        builder.AddInfrastructureResources();
+        builder.AddContentManagementResources(); // This method doesn't exist yet - will fail
+        builder.ConfigureEnvironment();
+        var app = builder.Build();
+        // Don't actually start the app in tests for GREEN phase
+
+        // Assert - Verify development environment uses Azurite emulation
+        var config = app.Services.GetRequiredService<IConfiguration>();
+        
+        // Development should use Azurite for blob storage
+        var environment = config["ASPNETCORE_ENVIRONMENT"] ?? "Development";
+        Assert.Equal("Development", environment);
+        
+        // Verify development-specific blob storage configuration
+        var useEmulator = config.GetValue<bool>("ContentStorage:UseEmulator");
+        Assert.True(useEmulator); // Should use emulator in development
+        
+        // Verify local CDN simulation is enabled
+        var useCdnSimulation = config.GetValue<bool>("CDN:UseSimulation");
+        Assert.True(useCdnSimulation); // Should use simulation in development
+    }
+
+    [Fact(Timeout = 15000)]
+    public async Task AspireHost_ShouldConfigureContentManagementHealthChecks_WithStorageResources()
+    {
+        // Arrange & Act - This will fail until ContentManagement health monitoring is implemented  
+        // Tests health check integration for all ContentManagement storage resources
+        var builder = DistributedApplication.CreateBuilder();
+        builder.AddInfrastructureResources();
+        builder.AddContentManagementResources(); // This method doesn't exist yet - will fail
+        builder.AddHealthOrchestration();
+        var app = builder.Build();
+        // Don't actually start the app in tests for GREEN phase
+
+        // Assert - Verify health checks are configured for ContentManagement resources
+        var healthCheckService = app.Services.GetService<Microsoft.Extensions.Diagnostics.HealthChecks.HealthCheckService>();
+        Assert.NotNull(healthCheckService);
+        
+        // Verify configuration includes health check endpoints
+        var config = app.Services.GetRequiredService<IConfiguration>();
+        var healthCheckEndpoints = config["HealthChecks:ContentManagement"];
+        Assert.NotNull(healthCheckEndpoints);
+        Assert.Contains("storage", healthCheckEndpoints);
+        
+        // For GREEN phase, just verify the service is registered - don't run actual health checks
+        // Running health checks requires actual service connections which we don't have in tests
+    }
+
+    [Fact(Timeout = 15000)]
+    public async Task AspireHost_ShouldConfigureResourceDependencyOrder_WithContentManagementStartup()
+    {
+        // Arrange & Act - This will fail until resource dependency management is implemented
+        // Tests that ContentManagement resources start in proper dependency order
+        var builder = DistributedApplication.CreateBuilder();
+        builder.AddInfrastructureResources();
+        builder.AddContentManagementResources(); // This method doesn't exist yet - will fail
+        builder.ConfigureEnvironment();
+        var app = builder.Build();
+        // Don't actually start the app in tests for GREEN phase
+
+        // Assert - Verify resource startup dependencies are configured
+        var config = app.Services.GetRequiredService<IConfiguration>();
+        
+        // Storage should start before CDN simulation
+        var storageStartupOrder = config.GetValue<int>("ResourceStartup:Storage:Order");
+        var cdnStartupOrder = config.GetValue<int>("ResourceStartup:CdnSimulation:Order");
+        
+        Assert.True(storageStartupOrder < cdnStartupOrder, "Storage should start before CDN simulation");
+        
+        // ContentManagement resources should start after core infrastructure
+        var postgresStartupOrder = config.GetValue<int>("ResourceStartup:Postgres:Order");
+        Assert.True(postgresStartupOrder < storageStartupOrder, "PostgreSQL should start before Storage");
+    }
+
+    [Fact(Timeout = 15000)]
+    public async Task AspireHost_ShouldSupportContentManagementServiceDiscovery_WithProperConnectionStrings()
+    {
+        // Arrange & Act - This will fail until ContentManagement service discovery is implemented
+        // Tests that ContentManagement services can discover storage resources via connection strings
+        var builder = DistributedApplication.CreateBuilder();
+        builder.AddInfrastructureResources();
+        builder.AddContentManagementResources(); // This method doesn't exist yet - will fail
+        builder.ConfigureEnvironment();
+        var app = builder.Build();
+        // Don't actually start the app in tests for GREEN phase
+
+        // Assert - Verify ContentManagement services can discover storage resources
+        var serviceProvider = app.Services;
+        var config = serviceProvider.GetRequiredService<IConfiguration>();
+        
+        // ContentManagement should be able to discover Azure Storage (Microsoft-recommended pattern)
+        var storageConnectionString = config.GetConnectionString("storage");
+        Assert.NotNull(storageConnectionString);
+        Assert.Contains("UseDevelopmentStorage=true", storageConnectionString);
+        
+        // ContentManagement should be able to discover blob storage specifically
+        var blobsConnectionString = config.GetConnectionString("blobs");
+        Assert.NotNull(blobsConnectionString);
+        Assert.Contains("UseDevelopmentStorage=true", blobsConnectionString);
+        
+        // ContentManagement should be able to discover CDN simulation
+        var cdnConnectionString = config.GetConnectionString("cdn-simulation");
+        Assert.NotNull(cdnConnectionString);
+        
+        // ServicesDomain should be able to discover ContentManagement resources
+        var contentManagementUrl = config.GetConnectionString("content-management");
+        Assert.NotNull(contentManagementUrl);
+    }
+
     public async ValueTask DisposeAsync()
     {
         // Cleanup resources if needed

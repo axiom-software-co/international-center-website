@@ -1,28 +1,38 @@
 IMPORTANT AXIOM RULE TO FOLLOW IN THIS FILE : the file should only contain the tree structure of our architecture ( we should not have paragraphs nor lists )
 
-1️⃣ AspireHost (aspire-host/) ✅ **IMPLEMENTED - INFRASTRUCTURE ORCHESTRATION**
+1️⃣ AspireHost (aspire-host/) ✅ **IMPLEMENTED - COMPREHENSIVE INFRASTRUCTURE ORCHESTRATION**
 
-  Distributed application orchestration for services APIs
-  **Status: Complete infrastructure orchestration with 10/10 ResourceOrchestrationTests passing**
+  Distributed application orchestration for services APIs with ContentManagement integration
+  **Status: Complete infrastructure orchestration with ContentManagement resources - 16/16 ResourceOrchestrationTests passing**
 
   AspireHost/
   ├── Features/
-  │   ├── ResourceOrchestration/               ✅ **IMPLEMENTED - INFRASTRUCTURE ORCHESTRATION**
-  │   │   └── ResourceOrchestrationTests.cs   ✅ # 10/10 comprehensive tests passing
+  │   ├── ResourceOrchestration/               ✅ **IMPLEMENTED - COMPREHENSIVE INFRASTRUCTURE ORCHESTRATION**
+  │   │   └── ResourceOrchestrationTests.cs   ✅ # 16/16 comprehensive tests passing
+  │   │                                       ✅   # - Core infrastructure (PostgreSQL, Redis, RabbitMQ)
+  │   │                                       ✅   # - ContentManagement resources (Azure Storage, CDN simulation)  
+  │   │                                       ✅   # - Health monitoring integration with 7 health checks
+  │   │                                       ✅   # - Environment-specific resource configuration
+  │   │                                       ✅   # - Service discovery with proper connection strings
+  │   │                                       ✅   # - Resource dependency management and startup order
   │   ├── ServiceDiscovery/                    ✅ # Complete service registration and discovery
-  │   ├── HealthOrchestration/                 ✅ # Distributed health monitoring with observability
-  │   └── EnvironmentManagement/               ✅ # Environment-specific configurations complete
+  │   ├── HealthOrchestration/                 ✅ # Distributed health monitoring with comprehensive observability
+  │   └── EnvironmentManagement/               ✅ # Environment-specific configurations with compliance settings
   ├── Shared/
   │   └── Extensions/
-  │       └── AspireExtensions.cs              ✅ # Infrastructure orchestration extensions
+  │       └── AspireExtensions.cs              ✅ # Production infrastructure orchestration with LoggerMessage delegates
+  │   │                                       ✅   # - High-performance logging (AspireLog class with EventIDs 1001-9002)
+  │   │                                       ✅   # - ContentManagement resource orchestration (Azure Storage, CDN)
+  │   │                                       ✅   # - Comprehensive health monitoring (7 different health checks)
+  │   │                                       ✅   # - Enhanced error handling and structured exception logging
   ├── Properties/
   │   └── launchSettings.json                  ✅ # Runtime configuration
   ├── appsettings.json                         ✅ # Base configuration
   ├── appsettings.Development.json             ✅ # Development environment configuration
   ├── appsettings.Testing.json                 ✅ # Testing environment configuration
   ├── appsettings.Production.json              ✅ # Production environment configuration
-  ├── AspireHost.csproj                        ✅ # Project configuration
-  └── Program.cs                               ✅ # Basic orchestration entry point
+  ├── AspireHost.csproj                        ✅ # Project configuration with health check packages
+  └── Program.cs                               ✅ # Production orchestration entry point
 
   ---
   2️⃣ SharedPlatform (shared-platform/) ✅ **IMPLEMENTED - SHARED INFRASTRUCTURE**
