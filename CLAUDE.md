@@ -11,6 +11,7 @@
 
 
 - note : we will not work on the public and admin website frontend at the moment
+- note : stop using the term 'medical-grade' ( this is implicit and there is no need to mention it in the naming system )
 
 
 [ important project related rules to follow ]
