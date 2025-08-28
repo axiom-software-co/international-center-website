@@ -83,6 +83,19 @@ public sealed class Service : BaseAggregateRoot, IAuditable, ISoftDeletable, IVe
         return new Service(serviceId, title, description, serviceSlug, deliveryMode, categoryId);
     }
 
+    public static Service Create(ServiceTitle title, Description description, DeliveryMode deliveryMode, ServiceCategoryId categoryId, ServiceSlug? slug, string createdBy, DateTimeOffset createdOn)
+    {
+        var serviceId = ServiceId.New();
+        var serviceSlug = slug ?? ServiceSlug.FromTitle(title);
+        var service = new Service(serviceId, title, description, serviceSlug, deliveryMode, categoryId);
+        
+        // Set audit fields for admin operations
+        service.CreatedBy = createdBy;
+        service.CreatedOn = createdOn;
+        
+        return service;
+    }
+
     public void UpdateDetails(ServiceTitle title, Description description)
     {
         if (IsDeleted || PublishingStatus.IsArchived)
