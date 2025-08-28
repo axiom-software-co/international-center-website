@@ -1,10 +1,14 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using Microsoft.Extensions.ObjectPool;
 using Microsoft.EntityFrameworkCore;
 using SharedPlatform.Features.DataAccess.EntityFramework;
+using SharedPlatform.Features.DataAccess.EntityFramework.Entities;
 using SharedPlatform.Features.DataAccess.Dapper;
 using SharedPlatform.Features.DataAccess.Interceptors;
 using SharedPlatform.Features.DataAccess.HealthChecks;
+using System.Data;
+using Dapper;
 
 namespace SharedPlatform.Features.DataAccess.Extensions;
 
@@ -15,6 +19,58 @@ namespace SharedPlatform.Features.DataAccess.Extensions;
 /// </summary>
 public static class DataAccessServiceExtensions
 {
+    /// <summary>
+    /// SQLite GUID type handler for Dapper to handle string-to-GUID conversion
+    /// </summary>
+    private sealed class SqliteGuidTypeHandler : SqlMapper.TypeHandler<Guid>
+    {
+        public override Guid Parse(object value)
+        {
+            return value switch
+            {
+                string stringValue when Guid.TryParse(stringValue, out var guid) => guid,
+                Guid guidValue => guidValue,
+                _ => throw new InvalidCastException($"Cannot convert {value.GetType().Name} to Guid")
+            };
+        }
+
+        public override void SetValue(IDbDataParameter parameter, Guid value)
+        {
+            parameter.Value = value.ToString();
+        }
+    }
+
+    /// <summary>
+    /// SQLite nullable GUID type handler for Dapper to handle string-to-nullable-GUID conversion
+    /// </summary>
+    private sealed class SqliteNullableGuidTypeHandler : SqlMapper.TypeHandler<Guid?>
+    {
+        public override Guid? Parse(object value)
+        {
+            if (value == null || value == DBNull.Value)
+                return null;
+
+            return value switch
+            {
+                string stringValue when string.IsNullOrEmpty(stringValue) => null,
+                string stringValue when Guid.TryParse(stringValue, out var guid) => guid,
+                Guid guidValue => guidValue,
+                _ => throw new InvalidCastException($"Cannot convert {value.GetType().Name} to Guid?")
+            };
+        }
+
+        public override void SetValue(IDbDataParameter parameter, Guid? value)
+        {
+            parameter.Value = value?.ToString() ?? (object)DBNull.Value;
+        }
+    }
+
+    static DataAccessServiceExtensions()
+    {
+        // Register SQLite GUID type handlers for Dapper
+        SqlMapper.AddTypeHandler(new SqliteGuidTypeHandler());
+        SqlMapper.AddTypeHandler(new SqliteNullableGuidTypeHandler());
+    }
     public static IServiceCollection AddDataAccessServices(
         this IServiceCollection services, 
         object database,
@@ -34,6 +90,9 @@ public static class DataAccessServiceExtensions
         this IServiceCollection services,
         string connectionString)
     {
+        // Add HTTP context accessor for CorrelationIdInterceptor
+        services.AddHttpContextAccessor();
+        
         // Add interceptors first (required for DbContext configuration)
         services.AddMedicalAuditInterceptors();
         
@@ -100,13 +159,27 @@ public static class DataAccessServiceExtensions
     private static IServiceCollection AddDataAccessHealthChecks(
         this IServiceCollection services)
     {
-        // GREEN PHASE: Medical-grade health monitoring
+        // REFACTOR PHASE: High-performance medical-grade health monitoring with caching
+        
+        // Add memory caching for health check optimization
+        services.AddMemoryCache();
+        
+        // Register health checks with enhanced dependencies
         services.AddScoped<DatabaseHealthCheck>();
         services.AddScoped<ConnectionPoolHealthCheck>();
         
+        // Configure health checks with medical-grade timeouts and tags
         services.AddHealthChecks()
-            .AddCheck<DatabaseHealthCheck>("database", HealthStatus.Unhealthy, new[] { "database", "postgresql" })
-            .AddCheck<ConnectionPoolHealthCheck>("connectionpool", HealthStatus.Unhealthy, new[] { "database", "performance" });
+            .AddCheck<DatabaseHealthCheck>(
+                name: "database",
+                failureStatus: HealthStatus.Unhealthy,
+                tags: new[] { "database", "postgresql", "medical", "critical" },
+                timeout: TimeSpan.FromSeconds(10)) // Medical-grade timeout
+            .AddCheck<ConnectionPoolHealthCheck>(
+                name: "connectionpool",
+                failureStatus: HealthStatus.Unhealthy,
+                tags: new[] { "database", "performance", "medical", "critical" },
+                timeout: TimeSpan.FromSeconds(15)); // Pool check timeout
         
         return services;
     }
@@ -114,10 +187,50 @@ public static class DataAccessServiceExtensions
     private static IServiceCollection AddMedicalAuditInterceptors(
         this IServiceCollection services)
     {
-        // GREEN PHASE: Medical audit compliance interceptors
+        // REFACTOR PHASE: Medical audit compliance interceptors with high-performance dependencies
+        
+        // Register object pools for high-performance medical audit
+        services.AddSingleton<ObjectPool<List<ServiceAuditEntity>>>(serviceProvider =>
+        {
+            var provider = serviceProvider.GetRequiredService<ObjectPoolProvider>();
+            return provider.Create(new ServiceAuditListPooledObjectPolicy());
+        });
+        
+        services.AddSingleton<ObjectPool<Dictionary<string, object?>>>(serviceProvider =>
+        {
+            var provider = serviceProvider.GetRequiredService<ObjectPoolProvider>();
+            return provider.Create(new DictionaryPooledObjectPolicy());
+        });
+
+        // Register ObjectPoolProvider if not already registered
+        services.AddSingleton<ObjectPoolProvider, DefaultObjectPoolProvider>();
+        
+        // Register interceptors with dependencies
         services.AddScoped<MedicalAuditInterceptor>();
         services.AddScoped<CorrelationIdInterceptor>();
         
         return services;
+    }
+
+    private sealed class ServiceAuditListPooledObjectPolicy : PooledObjectPolicy<List<ServiceAuditEntity>>
+    {
+        public override List<ServiceAuditEntity> Create() => new();
+
+        public override bool Return(List<ServiceAuditEntity> obj)
+        {
+            obj.Clear();
+            return obj.Count == 0; // Return true if successfully cleared
+        }
+    }
+
+    private sealed class DictionaryPooledObjectPolicy : PooledObjectPolicy<Dictionary<string, object?>>
+    {
+        public override Dictionary<string, object?> Create() => new();
+
+        public override bool Return(Dictionary<string, object?> obj)
+        {
+            obj.Clear();
+            return obj.Count == 0; // Return true if successfully cleared
+        }
     }
 }

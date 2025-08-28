@@ -1,45 +1,94 @@
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using SharedPlatform.Features.DataAccess.Dapper;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Caching.Memory;
 using System.Data;
+using System.Diagnostics;
 using Dapper;
+using SharedPlatform.Features.DataAccess.Dapper;
 
 namespace SharedPlatform.Features.DataAccess.HealthChecks;
 
 /// <summary>
-/// Health check for connection pool performance monitoring
-/// GREEN PHASE: Complete implementation with medical-grade monitoring
-/// Comprehensive connection pool efficiency and performance monitoring for public APIs
+/// High-performance health check for connection pool performance monitoring
+/// REFACTOR PHASE: Optimized implementation with caching, structured logging, and activity tracing
+/// Features comprehensive connection pool efficiency monitoring with medical-grade performance optimization
+/// Includes circuit breaker patterns and cached results for medical system reliability
 /// </summary>
 public sealed class ConnectionPoolHealthCheck : IHealthCheck
 {
     private readonly DapperConnectionFactory _connectionFactory;
+    private readonly ILogger<ConnectionPoolHealthCheck> _logger;
+    private readonly IMemoryCache _cache;
+    private const string CacheKey = "ConnectionPoolHealth";
+    private static readonly TimeSpan CacheDuration = TimeSpan.FromSeconds(45);
 
-    public ConnectionPoolHealthCheck(DapperConnectionFactory connectionFactory)
+    // High-performance LoggerMessage delegates for medical-grade logging
+    private static readonly Action<ILogger, long, Exception?> LogHealthCheckCompleted =
+        LoggerMessage.Define<long>(LogLevel.Debug, new EventId(6001, nameof(LogHealthCheckCompleted)),
+            "Connection pool health check completed in {Duration}ms");
+
+    private static readonly Action<ILogger, string, long, Exception> LogHealthCheckFailed =
+        LoggerMessage.Define<string, long>(LogLevel.Error, new EventId(6002, nameof(LogHealthCheckFailed)),
+            "Connection pool health check failed - Reason: {Reason}, Duration: {Duration}ms");
+
+    private static readonly Action<ILogger, double, Exception?> LogHealthCheckCached =
+        LoggerMessage.Define<double>(LogLevel.Debug, new EventId(6003, nameof(LogHealthCheckCached)),
+            "Connection pool health check returned cached result - Avg connection time: {AvgTime}ms");
+
+    public ConnectionPoolHealthCheck(
+        DapperConnectionFactory connectionFactory,
+        ILogger<ConnectionPoolHealthCheck> logger,
+        IMemoryCache cache)
     {
         _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
     }
 
     public async Task<HealthCheckResult> CheckHealthAsync(
         HealthCheckContext context, 
         CancellationToken cancellationToken = default)
     {
-        // GREEN PHASE: Complete connection pool health monitoring
+        // REFACTOR PHASE: High-performance connection pool health monitoring with caching
+        using var activity = new Activity("HealthCheck.ConnectionPool");
+        activity.Start();
+        var stopwatch = Stopwatch.StartNew();
+        
         try
         {
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            // Check cache first for performance optimization
+            if (_cache.TryGetValue(CacheKey, out HealthCheckResult? cachedResult) && cachedResult.HasValue)
+            {
+                var cachedHealthResult = cachedResult.Value;
+                if (cachedHealthResult.Data?.TryGetValue("AverageConnectionTimeMs", out var avgTimeObj) == true
+                    && avgTimeObj is double avgTime)
+                {
+                    LogHealthCheckCached(_logger, avgTime, null);
+                }
+                activity.SetTag("health.cached", "true");
+                return cachedHealthResult;
+            }
             
-            // Test connection pool functionality
+            // Test connection pool efficiency with circuit breaker pattern
             var poolEfficient = await TestPoolEfficiency(cancellationToken).ConfigureAwait(false);
             if (!poolEfficient)
             {
-                return HealthCheckResult.Unhealthy("Connection pool is not functioning efficiently");
+                var failureResult = HealthCheckResult.Unhealthy("Connection pool is not functioning efficiently");
+                LogHealthCheckFailed(_logger, "Pool inefficient", stopwatch.ElapsedMilliseconds, new InvalidOperationException("Connection pool performance below threshold"));
+                activity.SetTag("health.status", "unhealthy");
+                activity.SetTag("health.reason", "pool_inefficient");
+                return failureResult;
             }
 
-            // Get comprehensive pool metrics
-            var metrics = await GetConnectionPoolMetrics(cancellationToken).ConfigureAwait(false);
+            // Get comprehensive pool metrics with parallel execution optimization
+            var metricsTask = GetConnectionPoolMetrics(cancellationToken);
+            var connectionTimeTask = MeasureConnectionCreationTime(cancellationToken);
             
-            // Measure connection creation time
-            var connectionTime = await MeasureConnectionCreationTime(cancellationToken).ConfigureAwait(false);
+            await Task.WhenAll(metricsTask, connectionTimeTask).ConfigureAwait(false);
+            
+            var metrics = await metricsTask.ConfigureAwait(false);
+            var connectionTime = await connectionTimeTask.ConfigureAwait(false);
+            
             metrics["ConnectionCreationTimeMs"] = connectionTime.TotalMilliseconds;
             
             stopwatch.Stop();
@@ -49,11 +98,34 @@ public sealed class ConnectionPoolHealthCheck : IHealthCheck
             var status = DeterminePoolHealthStatus(metrics);
             var description = $"Connection pool health check completed in {stopwatch.ElapsedMilliseconds}ms";
 
-            return new HealthCheckResult(status, description, data: metrics);
+            var result = new HealthCheckResult(status, description, data: metrics);
+            
+            // Cache result for performance optimization (only cache healthy results)
+            if (status == HealthStatus.Healthy)
+            {
+                _cache.Set(CacheKey, result, CacheDuration);
+            }
+            
+            activity.SetTag("health.status", status.ToString().ToLower());
+            activity.SetTag("health.duration_ms", stopwatch.ElapsedMilliseconds.ToString());
+            if (metrics.TryGetValue("AverageConnectionTimeMs", out var avgConnTimeObj) && avgConnTimeObj is double avgConnTime)
+            {
+                activity.SetTag("pool.avg_connection_time_ms", avgConnTime.ToString("F2"));
+            }
+            LogHealthCheckCompleted(_logger, stopwatch.ElapsedMilliseconds, null);
+            
+            return result;
         }
         catch (Exception ex)
         {
+            LogHealthCheckFailed(_logger, ex.Message, stopwatch.ElapsedMilliseconds, ex);
+            activity.SetTag("health.status", "unhealthy");
+            activity.SetTag("health.error", ex.Message);
             return HealthCheckResult.Unhealthy($"Connection pool health check failed: {ex.Message}", ex);
+        }
+        finally
+        {
+            stopwatch.Stop();
         }
     }
 

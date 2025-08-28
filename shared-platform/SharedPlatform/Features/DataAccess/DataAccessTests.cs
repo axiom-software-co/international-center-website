@@ -117,9 +117,8 @@ public sealed class DataAccessTests : IAsyncDisposable
         var dapperRepo = app.Services.GetRequiredService<DapperServiceRepository>();
         var connectionFactory = app.Services.GetRequiredService<DapperConnectionFactory>();
 
-        // Act - Query services using optimized Dapper queries
-        using var connection = await connectionFactory.CreateConnectionAsync();
-        var services = await dapperRepo.GetAllAsync(connection, CancellationToken.None);
+        // Act - Query services using optimized Dapper queries with automatic connection management
+        var services = await dapperRepo.GetAllAsync(CancellationToken.None);
 
         // Assert - Should return results efficiently
         Assert.NotNull(services);
@@ -161,9 +160,8 @@ public sealed class DataAccessTests : IAsyncDisposable
 
         var testSlug = TestServiceSlug.From("medical-consultation-service");
 
-        // Act - Query by slug with case-insensitive search
-        using var connection = await connectionFactory.CreateConnectionAsync();
-        var service = await dapperRepo.GetBySlugAsync(connection, testSlug, CancellationToken.None);
+        // Act - Query by slug with case-insensitive search and automatic connection management
+        var service = await dapperRepo.GetBySlugAsync(testSlug, CancellationToken.None);
 
         // Assert - Should handle case-insensitive slug matching
         // Note: May return null if no test data, but should not throw
