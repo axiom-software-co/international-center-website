@@ -211,27 +211,25 @@ public sealed class MedicalAuditInterceptor : SaveChangesInterceptor
         {
             ServiceId = entry.Entity.ServiceId,
             UserId = currentUserId,
-            Timestamp = timestamp,
-            CorrelationId = correlationId
+            AuditTimestamp = timestamp,
+            CorrelationId = Guid.TryParse(correlationId, out var corrId) ? corrId : null
         };
 
         switch (entry.State)
         {
             case EntityState.Added:
                 auditEntry.OperationType = AuditOperations.Insert;
-                auditEntry.NewValues = await SerializeAuditValuesAsync(entry.Entity, cancellationToken).ConfigureAwait(false);
+                PopulateAuditFields(auditEntry, entry.Entity);
                 break;
 
             case EntityState.Modified:
                 auditEntry.OperationType = AuditOperations.Update;
-                auditEntry.OldValues = await SerializeAuditValuesAsync(entry.OriginalValues, cancellationToken).ConfigureAwait(false);
-                auditEntry.NewValues = await SerializeAuditValuesAsync(entry.Entity, cancellationToken).ConfigureAwait(false);
-                auditEntry.Changes = await SerializeChangesAsync(entry, cancellationToken).ConfigureAwait(false);
+                PopulateAuditFields(auditEntry, entry.Entity);
                 break;
 
             case EntityState.Deleted:
                 auditEntry.OperationType = AuditOperations.Delete;
-                auditEntry.OldValues = await SerializeAuditValuesAsync(entry.Entity, cancellationToken).ConfigureAwait(false);
+                PopulateAuditFields(auditEntry, entry.Entity);
                 break;
         }
 
@@ -249,31 +247,54 @@ public sealed class MedicalAuditInterceptor : SaveChangesInterceptor
         {
             ServiceId = entry.Entity.ServiceId,
             UserId = currentUserId,
-            Timestamp = timestamp,
-            CorrelationId = correlationId
+            AuditTimestamp = timestamp,
+            CorrelationId = Guid.TryParse(correlationId, out var corrId) ? corrId : null
         };
 
         switch (entry.State)
         {
             case EntityState.Added:
                 auditEntry.OperationType = AuditOperations.Insert;
-                auditEntry.NewValues = SerializeAuditValuesSync(entry.Entity);
+                PopulateAuditFields(auditEntry, entry.Entity);
                 break;
 
             case EntityState.Modified:
                 auditEntry.OperationType = AuditOperations.Update;
-                auditEntry.OldValues = SerializeAuditValuesSync(entry.OriginalValues);
-                auditEntry.NewValues = SerializeAuditValuesSync(entry.Entity);
-                auditEntry.Changes = SerializeChangesSync(entry);
+                PopulateAuditFields(auditEntry, entry.Entity);
                 break;
 
             case EntityState.Deleted:
                 auditEntry.OperationType = AuditOperations.Delete;
-                auditEntry.OldValues = SerializeAuditValuesSync(entry.Entity);
+                PopulateAuditFields(auditEntry, entry.Entity);
                 break;
         }
 
         return auditEntry;
+    }
+
+    private void PopulateAuditFields(ServiceAuditEntity auditEntry, ServiceEntity entity)
+    {
+        // Copy service data to audit fields for snapshot
+        auditEntry.Title = entity.Title;
+        auditEntry.Description = entity.Description;
+        auditEntry.Slug = entity.Slug;
+        auditEntry.LongDescriptionUrl = entity.LongDescriptionUrl;
+        auditEntry.CategoryId = entity.CategoryId;
+        auditEntry.ImageUrl = entity.ImageUrl;
+        auditEntry.OrderNumber = entity.OrderNumber;
+        auditEntry.DeliveryMode = entity.DeliveryMode;
+        auditEntry.PublishingStatus = entity.PublishingStatus;
+        
+        // Copy audit fields
+        auditEntry.CreatedOn = entity.CreatedOn;
+        auditEntry.CreatedBy = entity.CreatedBy;
+        auditEntry.ModifiedOn = entity.ModifiedOn;
+        auditEntry.ModifiedBy = entity.ModifiedBy;
+        
+        // Copy soft delete fields
+        auditEntry.IsDeleted = entity.IsDeleted;
+        auditEntry.DeletedOn = entity.DeletedOn;
+        auditEntry.DeletedBy = entity.DeletedBy;
     }
 
     private async Task<string> SerializeAuditValuesAsync(ServiceEntity entity, CancellationToken cancellationToken)
@@ -407,14 +428,18 @@ public sealed class MedicalAuditInterceptor : SaveChangesInterceptor
         values["Title"] = entity.Title;
         values["Description"] = entity.Description;
         values["Slug"] = entity.Slug;
-        values["DeliveryMode"] = entity.DeliveryMode;
+        values["LongDescriptionUrl"] = entity.LongDescriptionUrl;
         values["CategoryId"] = entity.CategoryId;
+        values["ImageUrl"] = entity.ImageUrl;
+        values["OrderNumber"] = entity.OrderNumber;
+        values["DeliveryMode"] = entity.DeliveryMode;
+        values["PublishingStatus"] = entity.PublishingStatus;
+        values["CreatedOn"] = entity.CreatedOn;
         values["CreatedBy"] = entity.CreatedBy;
-        values["CreatedAt"] = entity.CreatedAt;
-        values["UpdatedAt"] = entity.UpdatedAt;
-        values["UpdatedBy"] = entity.UpdatedBy;
+        values["ModifiedOn"] = entity.ModifiedOn;
+        values["ModifiedBy"] = entity.ModifiedBy;
         values["IsDeleted"] = entity.IsDeleted;
-        values["DeletedAt"] = entity.DeletedAt;
+        values["DeletedOn"] = entity.DeletedOn;
         values["DeletedBy"] = entity.DeletedBy;
     }
 

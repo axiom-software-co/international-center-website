@@ -98,9 +98,9 @@ public sealed class CorrelationIdInterceptor : SaveChangesInterceptor
             // Propagate to audit entities
             foreach (var auditEntry in auditEntries)
             {
-                if (string.IsNullOrEmpty(auditEntry.Entity.CorrelationId))
+                if (auditEntry.Entity.CorrelationId == null)
                 {
-                    auditEntry.Entity.CorrelationId = correlationId;
+                    auditEntry.Entity.CorrelationId = Guid.TryParse(correlationId, out var corrId) ? corrId : null;
                 }
             }
 

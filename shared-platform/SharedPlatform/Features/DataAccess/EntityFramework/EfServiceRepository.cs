@@ -69,8 +69,8 @@ public sealed class EfServiceRepository
                 DeliveryMode = service.DeliveryMode,
                 CategoryId = service.CategoryId,
                 CreatedBy = service.CreatedBy,
-                CreatedAt = service.CreatedAt,
-                UpdatedAt = service.UpdatedAt
+                CreatedOn = service.CreatedAt,
+                ModifiedOn = service.UpdatedAt
             };
 
             _context.Services.Add(entity);
@@ -174,8 +174,8 @@ public sealed class EfServiceRepository
             entity.Slug = service.Slug;
             entity.DeliveryMode = service.DeliveryMode;
             entity.CategoryId = service.CategoryId;
-            entity.UpdatedAt = DateTime.UtcNow;
-            entity.UpdatedBy = service.CreatedBy; // Using CreatedBy as current user context
+            entity.ModifiedOn = DateTime.UtcNow;
+            entity.ModifiedBy = service.CreatedBy; // Using CreatedBy as current user context
 
             await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
 
@@ -217,7 +217,7 @@ public sealed class EfServiceRepository
 
             // Medical-grade soft delete with audit trail
             entity.IsDeleted = true;
-            entity.DeletedAt = DateTime.UtcNow;
+            entity.DeletedOn = DateTime.UtcNow;
             entity.DeletedBy = "system"; // TODO: Get from current user context
 
             await _context.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
@@ -248,7 +248,7 @@ public sealed class EfServiceRepository
         {
             var services = await _context.Services
                 .AsNoTracking() // Performance optimization for read-only operation
-                .OrderBy(s => s.CreatedAt)
+                .OrderBy(s => s.CreatedOn)
                 .ToListAsync(cancellationToken)
                 .ConfigureAwait(false);
 

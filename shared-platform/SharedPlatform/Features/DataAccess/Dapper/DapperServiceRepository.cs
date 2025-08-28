@@ -44,6 +44,10 @@ public sealed class DapperServiceRepository
         public string CreatedBy { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
+        
+        // Map from database column names to interface properties
+        public DateTime CreatedOn { set => CreatedAt = value; }
+        public DateTime ModifiedOn { set => UpdatedAt = value; }
     }
 
     public async Task<IEnumerable<IService>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -60,10 +64,10 @@ public sealed class DapperServiceRepository
             const string sql = @"
                 SELECT service_id AS ServiceId, title AS Title, description AS Description, 
                        slug AS Slug, delivery_mode AS DeliveryMode, category_id AS CategoryId,
-                       created_by AS CreatedBy, created_at AS CreatedAt, updated_at AS UpdatedAt
+                       created_by AS CreatedBy, created_on AS CreatedOn, modified_on AS ModifiedOn
                 FROM services 
                 WHERE is_deleted = false
-                ORDER BY created_at DESC";
+                ORDER BY created_on DESC";
 
             var services = await connection.QueryAsync<ServiceDto>(sql).ConfigureAwait(false);
             
@@ -95,7 +99,7 @@ public sealed class DapperServiceRepository
             const string sql = @"
                 SELECT service_id AS ServiceId, title AS Title, description AS Description, 
                        slug AS Slug, delivery_mode AS DeliveryMode, category_id AS CategoryId,
-                       created_by AS CreatedBy, created_at AS CreatedAt, updated_at AS UpdatedAt
+                       created_by AS CreatedBy, created_on AS CreatedOn, modified_on AS ModifiedOn
                 FROM services 
                 WHERE service_id = @ServiceId AND is_deleted = false";
 
@@ -130,7 +134,7 @@ public sealed class DapperServiceRepository
             const string sql = @"
                 SELECT service_id AS ServiceId, title AS Title, description AS Description, 
                        slug AS Slug, delivery_mode AS DeliveryMode, category_id AS CategoryId,
-                       created_by AS CreatedBy, created_at AS CreatedAt, updated_at AS UpdatedAt
+                       created_by AS CreatedBy, created_on AS CreatedOn, modified_on AS ModifiedOn
                 FROM services 
                 WHERE LOWER(slug) = LOWER(@Slug) AND is_deleted = false";
 
@@ -166,10 +170,10 @@ public sealed class DapperServiceRepository
             const string sql = @"
                 SELECT service_id AS ServiceId, title AS Title, description AS Description, 
                        slug AS Slug, delivery_mode AS DeliveryMode, category_id AS CategoryId,
-                       created_by AS CreatedBy, created_at AS CreatedAt, updated_at AS UpdatedAt
+                       created_by AS CreatedBy, created_on AS CreatedOn, modified_on AS ModifiedOn
                 FROM services 
                 WHERE category_id = @CategoryId AND is_deleted = false
-                ORDER BY created_at DESC";
+                ORDER BY created_on DESC";
 
             var services = await connection.QueryAsync<ServiceDto>(sql, new { CategoryId = categoryId.Value }).ConfigureAwait(false);
             
@@ -267,11 +271,11 @@ public sealed class DapperServiceRepository
             const string sql = @"
                 SELECT service_id AS ServiceId, title AS Title, description AS Description, 
                        slug AS Slug, delivery_mode AS DeliveryMode, category_id AS CategoryId,
-                       created_by AS CreatedBy, created_at AS CreatedAt, updated_at AS UpdatedAt
+                       created_by AS CreatedBy, created_on AS CreatedOn, modified_on AS ModifiedOn
                 FROM services 
                 WHERE (LOWER(title) LIKE LOWER(@SearchTerm) OR LOWER(description) LIKE LOWER(@SearchTerm))
                   AND is_deleted = false
-                ORDER BY created_at DESC
+                ORDER BY created_on DESC
                 OFFSET @Offset LIMIT @Limit";
 
             var services = await connection.QueryAsync<ServiceDto>(sql, new 

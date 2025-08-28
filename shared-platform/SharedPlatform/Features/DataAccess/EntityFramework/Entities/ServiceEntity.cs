@@ -13,32 +13,101 @@ public sealed class ServiceEntity : IService
     public string Title { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
     public string Slug { get; set; } = string.Empty;
-    public string DeliveryMode { get; set; } = string.Empty;
+    public string? LongDescriptionUrl { get; set; }
     public Guid CategoryId { get; set; } = Guid.NewGuid();
-    public string CreatedBy { get; set; } = string.Empty;
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
-
-    // EF Core navigation and audit properties
+    public string? ImageUrl { get; set; }
+    public int OrderNumber { get; set; } = 0;
+    public string DeliveryMode { get; set; } = string.Empty;
+    public string PublishingStatus { get; set; } = "draft";
+    
+    // Audit fields
+    public DateTime CreatedOn { get; set; } = DateTime.UtcNow;
+    public string? CreatedBy { get; set; }
+    public DateTime? ModifiedOn { get; set; }
+    public string? ModifiedBy { get; set; }
+    
+    // Soft delete fields
     public bool IsDeleted { get; set; } = false;
-    public DateTime? DeletedAt { get; set; }
+    public DateTime? DeletedOn { get; set; }
     public string? DeletedBy { get; set; }
-    public string? UpdatedBy { get; set; }
+
+    // IService interface compatibility
+    string IService.CreatedBy => CreatedBy ?? string.Empty;
+    DateTime IService.CreatedAt => CreatedOn;
+    DateTime IService.UpdatedAt => ModifiedOn ?? CreatedOn;
 }
 
 /// <summary>
-/// Medical audit record entity for compliance tracking
-/// GREEN PHASE: Automatic audit trail for all service changes
+/// Audit record entity matching SERVICES-SCHEMA.md specification
+/// Stores complete snapshots of service data for audit compliance
 /// </summary>
 public sealed class ServiceAuditEntity
 {
-    public Guid Id { get; set; } = Guid.NewGuid();
+    public Guid AuditId { get; set; } = Guid.NewGuid();
     public Guid ServiceId { get; set; }
     public string OperationType { get; set; } = string.Empty; // INSERT, UPDATE, DELETE
-    public string? CorrelationId { get; set; }
-    public string UserId { get; set; } = string.Empty;
-    public DateTime Timestamp { get; set; } = DateTime.UtcNow;
-    public string? OldValues { get; set; } // JSON
-    public string? NewValues { get; set; } // JSON
-    public string? Changes { get; set; } // JSON diff
+    public DateTime AuditTimestamp { get; set; } = DateTime.UtcNow;
+    public string? UserId { get; set; }
+    public Guid? CorrelationId { get; set; }
+    
+    // Snapshot of data at time of operation
+    public string? Title { get; set; }
+    public string? Description { get; set; }
+    public string? Slug { get; set; }
+    public string? LongDescriptionUrl { get; set; }
+    public Guid? CategoryId { get; set; }
+    public string? ImageUrl { get; set; }
+    public int? OrderNumber { get; set; }
+    public string? DeliveryMode { get; set; }
+    public string? PublishingStatus { get; set; }
+    
+    // Audit fields snapshot
+    public DateTime? CreatedOn { get; set; }
+    public string? CreatedBy { get; set; }
+    public DateTime? ModifiedOn { get; set; }
+    public string? ModifiedBy { get; set; }
+    
+    // Soft delete fields snapshot
+    public bool? IsDeleted { get; set; }
+    public DateTime? DeletedOn { get; set; }
+    public string? DeletedBy { get; set; }
+}
+
+/// <summary>
+/// Service category entity matching SERVICES-SCHEMA.md specification
+/// </summary>
+public sealed class ServiceCategoryEntity
+{
+    public Guid CategoryId { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = string.Empty;
+    public string Slug { get; set; } = string.Empty;
+    public int OrderNumber { get; set; } = 0;
+    public bool IsDefaultUnassigned { get; set; } = false;
+    
+    // Audit fields
+    public DateTime CreatedOn { get; set; } = DateTime.UtcNow;
+    public string? CreatedBy { get; set; }
+    public DateTime? ModifiedOn { get; set; }
+    public string? ModifiedBy { get; set; }
+    
+    // Soft delete fields
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedOn { get; set; }
+    public string? DeletedBy { get; set; }
+}
+
+/// <summary>
+/// Featured categories entity matching SERVICES-SCHEMA.md specification  
+/// </summary>
+public sealed class FeaturedCategoryEntity
+{
+    public Guid FeaturedCategoryId { get; set; } = Guid.NewGuid();
+    public Guid CategoryId { get; set; }
+    public int FeaturePosition { get; set; }
+    
+    // Audit fields
+    public DateTime CreatedOn { get; set; } = DateTime.UtcNow;
+    public string? CreatedBy { get; set; }
+    public DateTime? ModifiedOn { get; set; }
+    public string? ModifiedBy { get; set; }
 }
