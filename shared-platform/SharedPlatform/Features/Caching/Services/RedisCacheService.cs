@@ -17,11 +17,11 @@ public sealed class RedisCacheService : ICacheService
     private readonly ILogger<RedisCacheService> _logger;
     private readonly JsonSerializerOptions _jsonOptions;
     
-    private static readonly Action<ILogger, string> _logCacheMiss =
+    private static readonly Action<ILogger, string, Exception?> _logCacheMiss =
         LoggerMessage.Define<string>(LogLevel.Debug, new EventId(1001, "CacheMiss"),
             "Cache miss for key: {CacheKey}");
             
-    private static readonly Action<ILogger, string> _logCacheHit =
+    private static readonly Action<ILogger, string, Exception?> _logCacheHit =
         LoggerMessage.Define<string>(LogLevel.Debug, new EventId(1002, "CacheHit"),
             "Cache hit for key: {CacheKey}");
             
@@ -29,7 +29,7 @@ public sealed class RedisCacheService : ICacheService
         LoggerMessage.Define<string>(LogLevel.Error, new EventId(1003, "CacheGetError"),
             "Error retrieving value from cache for key: {CacheKey}");
             
-    private static readonly Action<ILogger, string> _logCacheSetSuccess =
+    private static readonly Action<ILogger, string, Exception?> _logCacheSetSuccess =
         LoggerMessage.Define<string>(LogLevel.Debug, new EventId(1004, "CacheSetSuccess"),
             "Successfully cached value for key: {CacheKey}");
             
@@ -37,13 +37,21 @@ public sealed class RedisCacheService : ICacheService
         LoggerMessage.Define<string>(LogLevel.Error, new EventId(1005, "CacheSetError"),
             "Error setting cache value for key: {CacheKey}");
             
-    private static readonly Action<ILogger, string> _logCacheExistsResult =
+    private static readonly Action<ILogger, string, Exception?> _logCacheExistsResult =
         LoggerMessage.Define<string>(LogLevel.Debug, new EventId(1006, "CacheExistsResult"),
             "Cache exists check for key: {CacheKey}");
             
     private static readonly Action<ILogger, string, Exception?> _logCacheExistsError =
         LoggerMessage.Define<string>(LogLevel.Error, new EventId(1007, "CacheExistsError"),
             "Error checking cache existence for key: {CacheKey}");
+            
+    private static readonly Action<ILogger, string, Exception?> _logCacheRemoveSuccess =
+        LoggerMessage.Define<string>(LogLevel.Debug, new EventId(1008, "CacheRemoveSuccess"),
+            "Removed cached value for key: {CacheKey}");
+            
+    private static readonly Action<ILogger, string, Exception?> _logCacheRemoveError =
+        LoggerMessage.Define<string>(LogLevel.Error, new EventId(1009, "CacheRemoveError"),
+            "Error removing cached value for key: {CacheKey}");
     
     public RedisCacheService(MicrosoftDistributedCache distributedCache, ILogger<RedisCacheService> logger)
     {
@@ -69,22 +77,26 @@ public sealed class RedisCacheService : ICacheService
             
             if (string.IsNullOrEmpty(cachedValue))
             {
-                _logCacheMiss(_logger, key);
+                _logCacheMiss(_logger, key, null);
                 return null;
             }
             
             var deserializedValue = JsonSerializer.Deserialize<T>(cachedValue, _jsonOptions);
-            _logCacheHit(_logger, key);
+            _logCacheHit(_logger, key, null);
             return deserializedValue;
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Failed to deserialize cached value for key: {CacheKey}", key);
+            _logCacheGetError(_logger, key, ex);
             // Remove corrupted cache entry for medical data integrity
-            await RemoveAsync(key, cancellationToken);
+            await RemoveAsync(key, cancellationToken).ConfigureAwait(false);
             return null;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw; // Allow cancellation to propagate
+        }
+        catch (InvalidOperationException ex)
         {
             _logCacheGetError(_logger, key, ex);
             return null; // Graceful degradation - don't fail the request
@@ -118,19 +130,22 @@ public sealed class RedisCacheService : ICacheService
             // Add sliding expiration for frequently accessed data
             options.SlidingExpiration = TimeSpan.FromMinutes(2);
             
-            await _distributedCache.SetStringAsync(key, serializedValue, options, cancellationToken);
+            await _distributedCache.SetStringAsync(key, serializedValue, options, cancellationToken).ConfigureAwait(false);
             
-            _logger.LogDebug("Cached value for key: {CacheKey} with expiration: {Expiration}", 
-                key, options.AbsoluteExpirationRelativeToNow);
+            _logCacheSetSuccess(_logger, key, null);
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Failed to serialize value for caching with key: {CacheKey}", key);
+            _logCacheSetError(_logger, key, ex);
             throw; // Serialization failures should not be ignored for medical data
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
         {
-            _logger.LogError(ex, "Error caching value for key: {CacheKey}", key);
+            throw; // Allow cancellation to propagate
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logCacheSetError(_logger, key, ex);
             throw; // Cache failures should be visible for medical-grade systems
         }
     }
@@ -141,12 +156,16 @@ public sealed class RedisCacheService : ICacheService
         
         try
         {
-            await _distributedCache.RemoveAsync(key, cancellationToken);
-            _logger.LogDebug("Removed cached value for key: {CacheKey}", key);
+            await _distributedCache.RemoveAsync(key, cancellationToken).ConfigureAwait(false);
+            _logCacheRemoveSuccess(_logger, key, null);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
         {
-            _logger.LogError(ex, "Error removing cached value for key: {CacheKey}", key);
+            throw; // Allow cancellation to propagate
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logCacheRemoveError(_logger, key, ex);
             throw; // Cache removal failures should be visible
         }
     }
@@ -157,15 +176,19 @@ public sealed class RedisCacheService : ICacheService
         
         try
         {
-            var cachedValue = await _distributedCache.GetStringAsync(key, cancellationToken);
+            var cachedValue = await _distributedCache.GetStringAsync(key, cancellationToken).ConfigureAwait(false);
             var exists = !string.IsNullOrEmpty(cachedValue);
             
-            _logger.LogDebug("Cache existence check for key: {CacheKey} - exists: {Exists}", key, exists);
+            _logCacheExistsResult(_logger, key, null);
             return exists;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
         {
-            _logger.LogError(ex, "Error checking cache existence for key: {CacheKey}", key);
+            throw; // Allow cancellation to propagate
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logCacheExistsError(_logger, key, ex);
             return false; // Assume doesn't exist on error
         }
     }

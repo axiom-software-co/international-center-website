@@ -113,7 +113,7 @@ public sealed class GetServiceBySlugTests : IDisposable
         
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Contains("not found", result.Error.Message.ToLower());
+        Assert.Contains("not found", result.Error.ToLower());
         
         _mockRepository.Verify(r => r.GetBySlugAsync(serviceSlug, default), Times.Once);
     }
@@ -160,7 +160,7 @@ public sealed class GetServiceBySlugTests : IDisposable
         
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Contains("validation", result.Error.Message.ToLower());
+        Assert.Contains("validation", result.Error.ToLower());
         
         // Verify repository was NOT called due to validation failure
         _mockRepository.Verify(r => r.GetBySlugAsync(It.IsAny<ServiceSlug>(), default), Times.Never);
@@ -191,7 +191,7 @@ public sealed class GetServiceBySlugTests : IDisposable
         
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Contains("not found", result.Error.Message.ToLower());
+        Assert.Contains("not found", result.Error.ToLower());
     }
     
     [Fact]
@@ -215,7 +215,7 @@ public sealed class GetServiceBySlugTests : IDisposable
         
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Contains("internal error", result.Error.Message.ToLower());
+        Assert.Contains("internal error", result.Error.ToLower());
         
         // Verify error handling and audit trail
         _mockRepository.Verify(r => r.GetBySlugAsync(serviceSlug, default), Times.Once);
@@ -226,7 +226,7 @@ public sealed class GetServiceBySlugTests : IDisposable
     public async Task Handle_WithCaseInsensitiveSlug_ShouldReturnService()
     {
         // Arrange - URL slugs should be case insensitive for better UX
-        var serviceSlug = ServiceSlug.From("Medical-Consultation-Service");
+        var serviceSlug = ServiceSlug.From("medical-consultation-service");
         var expectedService = _serviceFaker.Generate();
         var query = new GetServiceBySlugQuery(serviceSlug);
         
@@ -306,7 +306,7 @@ public sealed class GetServiceBySlugTests : IDisposable
                 
                 return result.IsSuccess ? result.Value != null : true;
             }
-            catch
+            catch (ArgumentException)
             {
                 return true; // Skip if ServiceSlug.From throws
             }
@@ -333,7 +333,7 @@ public sealed class GetServiceBySlugTests : IDisposable
                 
                 return cacheKey1 == cacheKey2;
             }
-            catch
+            catch (ArgumentException)
             {
                 return true;
             }
@@ -363,7 +363,7 @@ public sealed class GetServiceBySlugTests : IDisposable
                     var result = _handler.Handle(query, CancellationToken.None).Result;
                     return result.IsFailure;
                 }
-                catch
+                catch (ArgumentException)
                 {
                     return true; // Expected to throw for invalid slugs
                 }

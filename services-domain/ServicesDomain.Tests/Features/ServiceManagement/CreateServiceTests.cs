@@ -70,7 +70,7 @@ public sealed class CreateServiceTests : IDisposable
         _mockRepository.Setup(r => r.AddAsync(It.IsAny<Service>(), default))
             .ReturnsAsync(expectedService);
             
-        _mockRepository.Setup(r => r.ExistsBySlugAsync(command.Slug, default))
+        _mockRepository.Setup(r => r.ExistsBySlugAsync(command.Slug!, default))
             .ReturnsAsync(false);
             
         // Act - This will fail until CreateServiceHandler.Handle is implemented
@@ -96,13 +96,14 @@ public sealed class CreateServiceTests : IDisposable
     [Fact]
     public async Task Handle_WithDuplicateSlug_ShouldReturnValidationError()
     {
-        // Arrange
+        // Arrange - All slug variations are taken, should exhaust attempts and fail
         var command = _commandFaker.Generate();
         
         _mockValidator.Setup(v => v.ValidateAsync(command, default))
             .ReturnsAsync(new FluentValidation.Results.ValidationResult());
             
-        _mockRepository.Setup(r => r.ExistsBySlugAsync(command.Slug, default))
+        // Make all slug variations return true (all exist) to exhaust generation attempts
+        _mockRepository.Setup(r => r.ExistsBySlugAsync(It.IsAny<ServiceSlug>(), default))
             .ReturnsAsync(true);
             
         // Act
@@ -110,11 +111,11 @@ public sealed class CreateServiceTests : IDisposable
         
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Contains("slug already exists", result.Error.Message.ToLower());
+        Assert.Contains("unable to generate unique slug", result.Error.ToLower());
         
-        // Verify repository was NOT called for creation
+        // Verify repository was NOT called for creation due to slug generation failure
         _mockRepository.Verify(r => r.AddAsync(It.IsAny<Service>(), default), Times.Never);
-        _mockRepository.Verify(r => r.ExistsBySlugAsync(command.Slug, default), Times.Once);
+        _mockRepository.Verify(r => r.ExistsBySlugAsync(It.IsAny<ServiceSlug>(), default), Times.AtLeast(10));
     }
     
     [Fact]
@@ -134,8 +135,8 @@ public sealed class CreateServiceTests : IDisposable
         
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Contains("validation", result.Error.Message.ToLower());
-        Assert.Contains("title cannot be empty", result.Error.Message.ToLower());
+        Assert.Contains("validation", result.Error.ToLower());
+        Assert.Contains("title cannot be empty", result.Error.ToLower());
         
         // Verify repository was NOT called due to validation failure
         _mockRepository.Verify(r => r.AddAsync(It.IsAny<Service>(), default), Times.Never);
@@ -151,7 +152,7 @@ public sealed class CreateServiceTests : IDisposable
         _mockValidator.Setup(v => v.ValidateAsync(command, default))
             .ReturnsAsync(new FluentValidation.Results.ValidationResult());
             
-        _mockRepository.Setup(r => r.ExistsBySlugAsync(command.Slug, default))
+        _mockRepository.Setup(r => r.ExistsBySlugAsync(command.Slug!, default))
             .ReturnsAsync(false);
             
         _mockRepository.Setup(r => r.AddAsync(It.IsAny<Service>(), default))
@@ -162,10 +163,10 @@ public sealed class CreateServiceTests : IDisposable
         
         // Assert
         Assert.True(result.IsFailure);
-        Assert.Contains("internal error", result.Error.Message.ToLower());
+        Assert.Contains("internal error", result.Error.ToLower());
         
         // Verify error handling and audit trail
-        _mockRepository.Verify(r => r.ExistsBySlugAsync(command.Slug, default), Times.Once);
+        _mockRepository.Verify(r => r.ExistsBySlugAsync(command.Slug!, default), Times.Once);
         _mockRepository.Verify(r => r.AddAsync(It.IsAny<Service>(), default), Times.Once);
         _mockLogger.Verify(l => l.IsEnabled(LogLevel.Error), Times.AtLeastOnce);
     }
@@ -187,7 +188,7 @@ public sealed class CreateServiceTests : IDisposable
         _mockValidator.Setup(v => v.ValidateAsync(command, default))
             .ReturnsAsync(new FluentValidation.Results.ValidationResult());
             
-        _mockRepository.Setup(r => r.ExistsBySlugAsync(command.Slug, default))
+        _mockRepository.Setup(r => r.ExistsBySlugAsync(command.Slug!, default))
             .ReturnsAsync(false);
             
         _mockRepository.Setup(r => r.AddAsync(It.IsAny<Service>(), default))
@@ -275,19 +276,16 @@ public sealed class CreateServiceTests : IDisposable
     }
     
     [Fact]
-    public async Task Handle_WithEmptyUserId_ShouldReturnAuthorizationError()
+    public void Handle_WithEmptyUserId_ShouldReturnAuthorizationError()
     {
-        // Arrange - Missing user context should fail authorization
-        var command = new CreateServiceCommand(
+        // Arrange & Act & Assert - Missing user context should fail authorization
+        Assert.Throws<ArgumentException>(() => new CreateServiceCommand(
             ServiceTitle.From("Unauthorized Service"),
             Description.From("This service creation attempt should fail due to missing user identification"),
             DeliveryMode.InpatientService,
             ServiceCategoryId.New(),
             ServiceSlug.From("unauthorized-service"),
-            string.Empty); // Empty user ID
-        
-        // Act & Assert
-        Assert.Throws<ArgumentException>(() => command);
+            string.Empty)); // Empty user ID
     }
     
     #endregion
@@ -364,7 +362,6 @@ public sealed class CreateServiceTests : IDisposable
         Assert.Equal(service.Description.Value, response.Description);
         Assert.Equal(service.Slug.Value, response.Slug);
         Assert.Equal(service.DeliveryMode.Value, response.DeliveryMode);
-        Assert.NotNull(response.CreatedOn);
         Assert.Equal(service.CreatedBy, response.CreatedBy);
     }
     
@@ -407,7 +404,7 @@ public sealed class CreateServiceTests : IDisposable
                 
                 return result.IsSuccess && !string.IsNullOrEmpty(result.Value?.Slug);
             }
-            catch
+            catch (ArgumentException)
             {
                 return true; // Skip if ServiceTitle.From throws for invalid input
             }
@@ -436,7 +433,7 @@ public sealed class CreateServiceTests : IDisposable
                 _mockValidator.Setup(v => v.ValidateAsync(command, default))
                     .ReturnsAsync(new FluentValidation.Results.ValidationResult());
                     
-                _mockRepository.Setup(r => r.ExistsBySlugAsync(command.Slug, default))
+                _mockRepository.Setup(r => r.ExistsBySlugAsync(command.Slug!, default))
                     .ReturnsAsync(false);
                     
                 var expectedService = CreateExpectedService(command);
@@ -448,7 +445,7 @@ public sealed class CreateServiceTests : IDisposable
                 
                 return result.IsSuccess && result.Value?.CreatedBy == userIdValue;
             }
-            catch
+            catch (ArgumentException)
             {
                 return true; // Skip if command creation throws for invalid input
             }
@@ -469,7 +466,7 @@ public sealed class CreateServiceTests : IDisposable
         _mockValidator.Setup(v => v.ValidateAsync(command, default))
             .ReturnsAsync(new FluentValidation.Results.ValidationResult());
             
-        _mockRepository.Setup(r => r.ExistsBySlugAsync(command.Slug, default))
+        _mockRepository.Setup(r => r.ExistsBySlugAsync(command.Slug!, default))
             .ReturnsAsync(false);
             
         _mockRepository.Setup(r => r.AddAsync(It.IsAny<Service>(), default))
@@ -485,7 +482,7 @@ public sealed class CreateServiceTests : IDisposable
         Assert.True(result.Value.CreatedOn <= DateTimeOffset.UtcNow);
         
         // Verify audit trail components are called in correct order
-        _mockRepository.Verify(r => r.ExistsBySlugAsync(command.Slug, default), Times.Once);
+        _mockRepository.Verify(r => r.ExistsBySlugAsync(command.Slug!, default), Times.Once);
         _mockRepository.Verify(r => r.AddAsync(It.Is<Service>(s => 
             s.CreatedBy == command.UserId && 
             s.CreatedOn <= DateTimeOffset.UtcNow), default), Times.Once);
@@ -509,7 +506,7 @@ public sealed class CreateServiceTests : IDisposable
         _mockValidator.Setup(v => v.ValidateAsync(command, default))
             .ReturnsAsync(new FluentValidation.Results.ValidationResult());
             
-        _mockRepository.Setup(r => r.ExistsBySlugAsync(command.Slug, default))
+        _mockRepository.Setup(r => r.ExistsBySlugAsync(command.Slug!, default))
             .ReturnsAsync(false);
             
         _mockRepository.Setup(r => r.AddAsync(It.IsAny<Service>(), default))
@@ -531,7 +528,7 @@ public sealed class CreateServiceTests : IDisposable
         Assert.True(result.Value.CreatedOn > DateTimeOffset.MinValue);
         
         // 3. Service must have unique slug for medical record integrity
-        _mockRepository.Verify(r => r.ExistsBySlugAsync(command.Slug, default), Times.Once);
+        _mockRepository.Verify(r => r.ExistsBySlugAsync(command.Slug!, default), Times.Once);
     }
     
     [Fact]

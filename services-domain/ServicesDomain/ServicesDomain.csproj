@@ -31,6 +31,12 @@
     <PackageReference Include="MassTransit.AspNetCore" />
   </ItemGroup>
 
+  <!-- CQRS -->
+  <ItemGroup>
+    <PackageReference Include="MediatR" />
+    <PackageReference Include="MediatR.Extensions.Microsoft.DependencyInjection" />
+  </ItemGroup>
+
   <!-- Validation -->
   <ItemGroup>
     <PackageReference Include="FluentValidation" />

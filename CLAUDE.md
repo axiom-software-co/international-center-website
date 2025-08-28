@@ -17,11 +17,10 @@
 
 - dotnet aspire for distributed application orchestration
 
-- cohesion over coupling
 - best practices in our stack
 - microsoft documentation recommended patterns
 
-- synchronous and asynchronous patterns were appropriate 
+- high cohesion and low code duplication
 
 - configuration-based 
 - dependency inversion ( interfaces for variable concerns ) ( concrete types for stable concerns ) 
@@ -31,6 +30,7 @@
 - specification pattern
 - event sourcing ( for audit requirements ) 
 
+- synchronous and asynchronous patterns were appropriate 
 - result type for expected failures ( business rules violations , so forth )
 - exceptions for unexpected failures ( infrastructure failures , so forth ) 
 
@@ -160,13 +160,15 @@
 
 # testing
 
+- use DistributedApplicationTestingBuilder instead of testcontainers
+
 - arrange , act , assert
 - contract-first testing ( testing interfaces/contracts rather than implementation details ) ( focused on preconditions/dependencies and postconditions/state-change )
 - properly-based testing
 
 - unit tests must use mock for dependencies to craete isolation
 - integration tests must use real dependencies ( not mocks ) ( use DistributedApplicationTestingBuilder )
-- end to end tests must use real dependencies and be done in aspire ( they should test the website for proper backend to frontend integration ) ( with xunit instead of vitest ) ( use DistributedApplicationTestingBuilder )
+- end to end tests must use real dependencies and be done in aspire ( they should test the website for proper backend to frontend integration ) ( with xunit instead of vitest )
 
 - all tests must have timeouts ( they should fail fast if something is wrong ) ( 5 seconds for unit tests ) ( 15 secnds for integration ) ( 30 seconds for end to end tests ) 
 

@@ -37,13 +37,17 @@ public sealed class HybridCacheService : ICacheService
         LoggerMessage.Define<string>(LogLevel.Error, new EventId(1006, "BothCachesExistsFailed"),
             "Both primary and fallback cache failed for EXISTS operation on key: {CacheKey}");
             
-    private static readonly Action<ILogger, string> _logFallbackCacheUsed =
+    private static readonly Action<ILogger, string, Exception?> _logFallbackCacheUsed =
         LoggerMessage.Define<string>(LogLevel.Warning, new EventId(1007, "FallbackCacheUsed"),
             "Using fallback cache for key: {CacheKey} due to primary cache failure");
+            
+    private static readonly Action<ILogger, string, string, Exception?> _logCacheRemoveError =
+        LoggerMessage.Define<string, string>(LogLevel.Warning, new EventId(1008, "CacheRemoveError"),
+            "{CacheName} cache failed for REMOVE operation on key: {CacheKey}");
 
     public HybridCacheService(
-        RedisCacheService primaryCache,
-        MemoryCacheService fallbackCache,
+        ICacheService primaryCache,
+        ICacheService fallbackCache,
         ILogger<HybridCacheService> logger)
     {
         _primaryCache = primaryCache ?? throw new ArgumentNullException(nameof(primaryCache));
@@ -62,7 +66,11 @@ public sealed class HybridCacheService : ICacheService
                 return result;
             }
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw; // Allow cancellation to propagate
+        }
+        catch (InvalidOperationException ex)
         {
             _logPrimaryCacheFailed(_logger, key, ex);
         }
@@ -72,7 +80,11 @@ public sealed class HybridCacheService : ICacheService
             // Fallback to in-memory cache
             return await _fallbackCache.GetAsync<T>(key, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw; // Allow cancellation to propagate
+        }
+        catch (InvalidOperationException ex)
         {
             _logBothCachesFailed(_logger, key, ex);
             return null; // Graceful degradation for medical systems
@@ -90,7 +102,11 @@ public sealed class HybridCacheService : ICacheService
             await _primaryCache.SetAsync(key, value, expiration, cancellationToken).ConfigureAwait(false);
             primarySuccess = true;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw; // Allow cancellation to propagate
+        }
+        catch (InvalidOperationException ex)
         {
             _logPrimaryCacheSetFailed(_logger, key, ex);
         }
@@ -101,7 +117,11 @@ public sealed class HybridCacheService : ICacheService
             await _fallbackCache.SetAsync(key, value, expiration, cancellationToken).ConfigureAwait(false);
             fallbackSuccess = true;
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw; // Allow cancellation to propagate
+        }
+        catch (InvalidOperationException ex)
         {
             _logBothCachesSetFailed(_logger, key, ex);
         }
@@ -114,7 +134,7 @@ public sealed class HybridCacheService : ICacheService
 
         if (!primarySuccess)
         {
-            _logFallbackCacheUsed(_logger, key);
+            _logFallbackCacheUsed(_logger, key, null);
         }
     }
 
@@ -126,7 +146,7 @@ public sealed class HybridCacheService : ICacheService
         tasks.Add(TryRemoveFromCache(_primaryCache, "Redis", key, cancellationToken));
         tasks.Add(TryRemoveFromCache(_fallbackCache, "in-memory", key, cancellationToken));
 
-        await Task.WhenAll(tasks);
+        await Task.WhenAll(tasks).ConfigureAwait(false);
     }
 
     public async Task<bool> ExistsAsync(string key, CancellationToken cancellationToken = default)
@@ -136,7 +156,11 @@ public sealed class HybridCacheService : ICacheService
             // Check Redis first for distributed consistency
             return await _primaryCache.ExistsAsync(key, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
+        {
+            throw; // Allow cancellation to propagate
+        }
+        catch (InvalidOperationException ex)
         {
             _logPrimaryCacheExistsFailed(_logger, key, ex);
             
@@ -144,7 +168,11 @@ public sealed class HybridCacheService : ICacheService
             {
                 return await _fallbackCache.ExistsAsync(key, cancellationToken).ConfigureAwait(false);
             }
-            catch (Exception fallbackEx)
+            catch (OperationCanceledException)
+            {
+                throw; // Allow cancellation to propagate
+            }
+            catch (InvalidOperationException fallbackEx)
             {
                 _logBothCachesExistsFailed(_logger, key, fallbackEx);
                 return false;
@@ -156,11 +184,15 @@ public sealed class HybridCacheService : ICacheService
     {
         try
         {
-            await cache.RemoveAsync(key, cancellationToken);
+            await cache.RemoveAsync(key, cancellationToken).ConfigureAwait(false);
         }
-        catch (Exception ex)
+        catch (OperationCanceledException)
         {
-            _logger.LogWarning(ex, "{CacheName} cache failed for REMOVE operation on key: {CacheKey}", cacheName, key);
+            throw; // Allow cancellation to propagate
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logCacheRemoveError(_logger, cacheName, key, ex);
         }
     }
 }

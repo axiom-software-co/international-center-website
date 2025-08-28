@@ -18,7 +18,7 @@
     <PackageReference Include="FsCheck.Xunit" />
     <PackageReference Include="Bogus" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
-    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Aspire.Hosting.Testing" />
     <PackageReference Include="FluentValidation" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
   </ItemGroup>
@@ -27,6 +27,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ServicesDomain\ServicesDomain.csproj" />
     <ProjectReference Include="..\..\shared-platform\SharedPlatform\SharedPlatform.csproj" />
+    <ProjectReference Include="..\..\aspire-host\AspireHost\AspireHost.csproj" />
   </ItemGroup>
 
 </Project>

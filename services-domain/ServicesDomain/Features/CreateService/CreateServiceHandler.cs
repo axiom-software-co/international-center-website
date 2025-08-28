@@ -3,6 +3,9 @@ using FluentValidation;
 using Microsoft.Extensions.Logging;
 using CSharpFunctionalExtensions;
 using ServicesDomain.Features.ServiceManagement.Domain.Repository;
+using ServicesDomain.Features.ServiceManagement.Domain.ValueObjects;
+using ServicesDomain.Features.ServiceManagement.Domain.Entities;
+using ServicesDomain.Features.CategoryManagement.Domain.ValueObjects;
 
 namespace ServicesDomain.Features.CreateService;
 
@@ -30,11 +33,11 @@ public sealed class CreateServiceHandler : IRequestHandler<CreateServiceCommand,
         LoggerMessage.Define<string, string>(LogLevel.Information, new EventId(2001, "CreateServiceOperationStarted"),
             "CreateService operation started for user {UserId} with correlation {CorrelationId}");
             
-    private static readonly Action<ILogger, string, string, string> _logOperationCompleted =
+    private static readonly Action<ILogger, string, string, string, Exception?> _logOperationCompleted =
         LoggerMessage.Define<string, string, string>(LogLevel.Information, new EventId(2002, "CreateServiceOperationCompleted"),
             "CreateService operation completed successfully for service {ServiceId} by user {UserId} with correlation {CorrelationId}");
             
-    private static readonly Action<ILogger, string, string> _logValidationFailed =
+    private static readonly Action<ILogger, string, string, Exception?> _logValidationFailed =
         LoggerMessage.Define<string, string>(LogLevel.Warning, new EventId(2003, "CreateServiceValidationFailed"),
             "CreateService validation failed for user {UserId} with correlation {CorrelationId}");
             
@@ -42,11 +45,11 @@ public sealed class CreateServiceHandler : IRequestHandler<CreateServiceCommand,
         LoggerMessage.Define<string, string, string>(LogLevel.Error, new EventId(2004, "CreateServiceOperationFailed"),
             "CreateService operation failed for user {UserId} with correlation {CorrelationId}: {ErrorMessage}");
             
-    private static readonly Action<ILogger, string, string, string> _logSlugConflictResolved =
+    private static readonly Action<ILogger, string, string, string, Exception?> _logSlugConflictResolved =
         LoggerMessage.Define<string, string, string>(LogLevel.Information, new EventId(2005, "CreateServiceSlugConflictResolved"),
             "CreateService resolved slug conflict from {OriginalSlug} to {ResolvedSlug} with correlation {CorrelationId}");
             
-    private static readonly Action<ILogger, string, string> _logDefaultCategoryAssigned =
+    private static readonly Action<ILogger, string, string, Exception?> _logDefaultCategoryAssigned =
         LoggerMessage.Define<string, string>(LogLevel.Debug, new EventId(2006, "CreateServiceDefaultCategoryAssigned"),
             "CreateService assigned default category for user {UserId} with correlation {CorrelationId}");
 
@@ -62,7 +65,7 @@ public sealed class CreateServiceHandler : IRequestHandler<CreateServiceCommand,
             var validationResult = await _validator.ValidateAsync(request, cancellationToken).ConfigureAwait(false);
             if (!validationResult.IsValid)
             {
-                _logValidationFailed(_logger, request.UserId, correlationId);
+                _logValidationFailed(_logger, request.UserId, correlationId, null);
                 var errors = string.Join("; ", validationResult.Errors.Select(e => e.ErrorMessage));
                 return Result.Failure<CreateServiceResponse>($"Validation failed: {errors}");
             }
@@ -70,8 +73,8 @@ public sealed class CreateServiceHandler : IRequestHandler<CreateServiceCommand,
             // Resolve slug - either use provided one or generate from title
             var resolvedSlug = request.Slug ?? ServiceSlug.FromTitle(request.Title);
             
-            // Ensure slug uniqueness for medical record integrity
-            var finalSlug = await EnsureUniqueSlug(resolvedSlug, correlationId, cancellationToken).ConfigureAwait(false);
+            // Ensure slug uniqueness for medical record integrity - always generate unique slug if needed
+            var finalSlug = await GenerateUniqueSlug(resolvedSlug, correlationId, cancellationToken).ConfigureAwait(false);
             
             // Assign default category if none specified
             var finalCategoryId = request.CategoryId;
@@ -79,7 +82,7 @@ public sealed class CreateServiceHandler : IRequestHandler<CreateServiceCommand,
             {
                 // For now, create a new category ID as placeholder - in production this would fetch default category
                 finalCategoryId = ServiceCategoryId.New();
-                _logDefaultCategoryAssigned(_logger, request.UserId, correlationId);
+                _logDefaultCategoryAssigned(_logger, request.UserId, correlationId, null);
             }
             
             // Create service entity with audit information
@@ -98,18 +101,34 @@ public sealed class CreateServiceHandler : IRequestHandler<CreateServiceCommand,
             // Create response
             var response = CreateServiceResponse.From(createdService);
             
-            _logOperationCompleted(_logger, createdService.ServiceId.Value.ToString(), request.UserId, correlationId);
+            _logOperationCompleted(_logger, createdService.ServiceId.Value.ToString(), request.UserId, correlationId, null);
             
             return Result.Success(response);
         }
+        catch (OperationCanceledException)
+        {
+            throw; // Allow cancellation to propagate
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("Unable to generate unique slug"))
+        {
+            _logOperationFailed(_logger, request.UserId, correlationId, ex.Message, ex);
+            return Result.Failure<CreateServiceResponse>("Unable to generate unique slug after multiple attempts. Please try a different service name.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            _logOperationFailed(_logger, request.UserId, correlationId, ex.Message, ex);
+            return Result.Failure<CreateServiceResponse>("An internal error occurred during service creation");
+        }
+#pragma warning disable CA1031 // Medical-grade safety: catch all exceptions to prevent system crashes
         catch (Exception ex)
+#pragma warning restore CA1031
         {
             _logOperationFailed(_logger, request.UserId, correlationId, ex.Message, ex);
             return Result.Failure<CreateServiceResponse>("An internal error occurred while creating the service");
         }
     }
     
-    private async Task<ServiceSlug> EnsureUniqueSlug(ServiceSlug originalSlug, string correlationId, CancellationToken cancellationToken)
+    private async Task<ServiceSlug> GenerateUniqueSlug(ServiceSlug originalSlug, string correlationId, CancellationToken cancellationToken)
     {
         var currentSlug = originalSlug;
         var attempt = 0;
@@ -122,7 +141,7 @@ public sealed class CreateServiceHandler : IRequestHandler<CreateServiceCommand,
             {
                 if (attempt > 0)
                 {
-                    _logSlugConflictResolved(_logger, originalSlug.Value, currentSlug.Value, correlationId);
+                    _logSlugConflictResolved(_logger, originalSlug.Value, currentSlug.Value, correlationId, null);
                 }
                 return currentSlug;
             }

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using SharedPlatform.Features.Caching.Abstractions;
 
 namespace SharedPlatform.Features.Caching.Services;
@@ -10,10 +11,12 @@ namespace SharedPlatform.Features.Caching.Services;
 public sealed class MemoryCacheService : ICacheService
 {
     private readonly IMemoryCache _cache;
+    private readonly ILogger<MemoryCacheService> _logger;
     
-    public MemoryCacheService(IMemoryCache cache)
+    public MemoryCacheService(IMemoryCache cache, ILogger<MemoryCacheService> logger)
     {
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
     
     public Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default) where T : class
