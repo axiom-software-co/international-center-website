@@ -10,7 +10,19 @@ public class AdminAuthorizationStrategy : IAuthorizationStrategy
     
     public Task<AuthorizationResult> AuthorizeAsync(ClaimsPrincipal user, HttpContext context, string policy, CancellationToken cancellationToken = default)
     {
-        throw new NotImplementedException();
+        // GREEN PHASE: Minimal implementation for medical-grade admin authorization
+        if (!user.Identity?.IsAuthenticated ?? true)
+        {
+            return Task.FromResult(AuthorizationResult.Failed());
+        }
+        
+        // Check for admin role
+        if (user.IsInRole("Admin") || user.IsInRole("Administrator"))
+        {
+            return Task.FromResult(AuthorizationResult.Success());
+        }
+        
+        return Task.FromResult(AuthorizationResult.Failed());
     }
     
     public bool CanHandle(string policy)

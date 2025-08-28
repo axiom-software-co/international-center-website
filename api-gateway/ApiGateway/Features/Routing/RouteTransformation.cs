@@ -2,8 +2,8 @@ namespace ApiGateway.Features.Routing;
 
 public class RouteTransformation
 {
-    public Task SampleMethodAsync()
+    public string TransformPath(string originalPath)
     {
-        throw new NotImplementedException();
+        return originalPath.Replace("{id}", "{**catch-all}");
     }
 }

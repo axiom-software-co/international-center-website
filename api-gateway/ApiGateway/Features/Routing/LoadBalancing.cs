@@ -2,8 +2,12 @@ namespace ApiGateway.Features.Routing;
 
 public class LoadBalancing
 {
-    public Task SampleMethodAsync()
+    private int _counter;
+    
+    public string SelectDestination(string[] destinations)
     {
-        throw new NotImplementedException();
+        if (destinations.Length == 0) return string.Empty;
+        var index = Interlocked.Increment(ref _counter) % destinations.Length;
+        return destinations[index];
     }
 }

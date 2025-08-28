@@ -6,7 +6,16 @@ public static class PermissionValidation
 {
     public static bool HasPermission(ClaimsPrincipal user, string permission)
     {
-        throw new NotImplementedException();
+        // GREEN PHASE: Minimal implementation for medical-grade permission validation
+        if (!user.Identity?.IsAuthenticated ?? true)
+        {
+            return false;
+        }
+        
+        // Check for permission claims
+        return user.HasClaim("permission", permission) || 
+               user.HasClaim("permissions", permission) ||
+               user.HasClaim(ClaimTypes.AuthorizationDecision, permission);
     }
     
     public static bool HasRole(ClaimsPrincipal user, string role)

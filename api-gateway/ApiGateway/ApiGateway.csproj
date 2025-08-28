@@ -51,6 +51,7 @@
     <PackageReference Include="Microsoft.Extensions.Configuration.EnvironmentVariables" />
   </ItemGroup>
 
+
   <!-- Project References -->
   <ItemGroup>
     <ProjectReference Include="..\..\shared-platform\SharedPlatform\SharedPlatform.csproj" />

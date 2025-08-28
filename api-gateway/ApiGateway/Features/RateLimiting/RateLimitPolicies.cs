@@ -1,9 +1,28 @@
 namespace ApiGateway.Features.RateLimiting;
 
-public class RateLimitPolicies
+public static class RateLimitPolicies
 {
-    public Task SampleMethodAsync()
+    public static RateLimitPolicy GetPublicPolicy()
     {
-        throw new NotImplementedException();
+        return new RateLimitPolicy
+        {
+            RequestsPerMinute = 1000,
+            WindowSize = TimeSpan.FromMinutes(1)
+        };
     }
+
+    public static RateLimitPolicy GetAdminPolicy()
+    {
+        return new RateLimitPolicy
+        {
+            RequestsPerMinute = 100,
+            WindowSize = TimeSpan.FromMinutes(1)
+        };
+    }
+}
+
+public class RateLimitPolicy
+{
+    public int RequestsPerMinute { get; set; }
+    public TimeSpan WindowSize { get; set; }
 }

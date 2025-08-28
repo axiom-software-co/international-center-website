@@ -1,28 +1,17 @@
 using Yarp.ReverseProxy.Configuration;
 using ApiGateway.Shared.Models;
-using ApiGateway.Shared.Abstractions;
 
 namespace ApiGateway.Features.Routing;
 
-public class PublicRouteProvider : IRouteProvider
+public class PublicRouteProvider
 {
-    public Task<IEnumerable<RouteConfig>> GetRoutesAsync(CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-    
-    public Task<IEnumerable<ClusterConfig>> GetClustersAsync(CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-    
-    public Task<IEnumerable<RouteDefinition>> GetRouteDefinitionsAsync(CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
-    
-    public Task ReloadRoutesAsync(CancellationToken cancellationToken = default)
-    {
-        throw new NotImplementedException();
-    }
+    public IEnumerable<RouteConfig> PublicRoutes => new[]
+        {
+            new RouteConfig
+            {
+                RouteId = "public-services",
+                ClusterId = "public-services-cluster",
+                Match = new RouteMatch { Path = "/api/services/{**catch-all}" }
+            }
+        };
 }
