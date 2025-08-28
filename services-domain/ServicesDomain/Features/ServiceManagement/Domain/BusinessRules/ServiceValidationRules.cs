@@ -18,9 +18,8 @@ public static class ServiceValidationRules
         errors.AddRange(ValidateTitle(service.Title?.Value));
         errors.AddRange(ValidateDescription(service.Description?.Value));
         errors.AddRange(ValidateSlug(service.Slug?.Value));
-        errors.AddRange(ValidateStatus(service.Status?.Value));
-        errors.AddRange(ValidateOrder(service.Order));
-        errors.AddRange(ValidateUrls(service.ExternalUrl, service.ImageUrl));
+        errors.AddRange(ValidateStatus(service.PublishingStatus));
+        errors.AddRange(ValidateUrls(null, service.ImageUrl));
 
         return errors.ToArray();
     }
@@ -54,11 +53,11 @@ public static class ServiceValidationRules
             return errors.ToArray();
         }
 
-        if (description.Length < ServiceDescription.MinLength)
-            errors.Add($"Description must be at least {ServiceDescription.MinLength} characters");
+        if (description.Length < Description.MinLength)
+            errors.Add($"Description must be at least {Description.MinLength} characters");
 
-        if (description.Length > ServiceDescription.MaxLength)
-            errors.Add($"Description cannot exceed {ServiceDescription.MaxLength} characters");
+        if (description.Length > Description.MaxLength)
+            errors.Add($"Description cannot exceed {Description.MaxLength} characters");
 
         return errors.ToArray();
     }
@@ -85,31 +84,22 @@ public static class ServiceValidationRules
         return errors.ToArray();
     }
 
-    public static string[] ValidateStatus(ServiceStatusType? status)
+    public static string[] ValidateStatus(PublishingStatus? status)
     {
         var errors = new List<string>();
 
         if (status == null)
         {
-            errors.Add("Status is required");
+            errors.Add("Publishing status is required");
             return errors.ToArray();
         }
 
-        if (!Enum.IsDefined(typeof(ServiceStatusType), status.Value))
-            errors.Add("Invalid status value");
+        if (!PublishingStatus.ValidValues.Contains(status.Value))
+            errors.Add("Invalid publishing status value");
 
         return errors.ToArray();
     }
 
-    public static string[] ValidateOrder(int order)
-    {
-        var errors = new List<string>();
-
-        if (order < 0)
-            errors.Add("Order cannot be negative");
-
-        return errors.ToArray();
-    }
 
     public static string[] ValidateUrls(string? externalUrl, string? imageUrl)
     {

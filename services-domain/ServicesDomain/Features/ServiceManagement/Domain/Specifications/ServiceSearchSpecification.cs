@@ -31,7 +31,7 @@ public sealed class ServiceSearchSpecification : BaseSpecification<Service>
     {
         return service =>
             (!service.IsDeleted) &&
-            (includeInactive || service.Status.Value == ServiceStatusType.Active || service.Status.Value == ServiceStatusType.Published) &&
+            (includeInactive || service.PublishingStatus.Value == "published") &&
             (categoryId == null || service.CategoryId == categoryId) &&
             (string.IsNullOrWhiteSpace(searchTerm) ||
              service.Title.Value.Contains(searchTerm, StringComparison.OrdinalIgnoreCase) ||

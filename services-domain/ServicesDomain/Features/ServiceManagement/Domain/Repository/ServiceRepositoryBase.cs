@@ -26,13 +26,13 @@ public abstract class ServiceRepositoryBase : IServiceRepository
         if (service.Id == null)
             throw new ArgumentException("Service ID cannot be null", nameof(service));
 
-        if (string.IsNullOrWhiteSpace(service.Title))
+        if (string.IsNullOrWhiteSpace(service.Title?.Value))
             throw new ArgumentException("Service title cannot be null or empty", nameof(service));
 
-        if (string.IsNullOrWhiteSpace(service.Description))
+        if (string.IsNullOrWhiteSpace(service.Description?.Value))
             throw new ArgumentException("Service description cannot be null or empty", nameof(service));
 
-        if (string.IsNullOrWhiteSpace(service.Slug))
+        if (string.IsNullOrWhiteSpace(service.Slug?.Value))
             throw new ArgumentException("Service slug cannot be null or empty", nameof(service));
     }
 

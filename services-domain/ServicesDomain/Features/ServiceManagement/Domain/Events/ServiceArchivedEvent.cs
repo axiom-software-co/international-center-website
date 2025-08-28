@@ -7,11 +7,11 @@ public sealed class ServiceArchivedEvent : BaseDomainEvent
 {
     public ServiceId ServiceId { get; init; }
     public ServiceTitle Title { get; init; }
-    public ServiceDescription Description { get; init; }
+    public Description Description { get; init; }
     public ServiceSlug Slug { get; init; }
-    public DateTime ArchivedAt { get; init; }
+    public DateTimeOffset ArchivedAt { get; init; }
 
-    public ServiceArchivedEvent(ServiceId serviceId, ServiceTitle title, ServiceDescription description, ServiceSlug slug, DateTime archivedAt)
+    public ServiceArchivedEvent(ServiceId serviceId, ServiceTitle title, Description description, ServiceSlug slug, DateTimeOffset archivedAt)
     {
         ServiceId = serviceId ?? throw new ArgumentNullException(nameof(serviceId));
         Title = title ?? throw new ArgumentNullException(nameof(title));

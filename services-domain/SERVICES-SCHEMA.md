@@ -7,7 +7,7 @@
 CREATE TABLE services (
     service_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     title VARCHAR(255) NOT NULL,
-    short_description TEXT NOT NULL,
+    description TEXT NOT NULL,
     slug VARCHAR(255) UNIQUE NOT NULL,
     long_description_url VARCHAR(500), -- URL to Azure Blob Storage content
     category_id UUID NOT NULL REFERENCES service_categories(category_id),
@@ -94,7 +94,7 @@ CREATE TABLE services_audit (
     
     -- Snapshot of data at time of operation
     title VARCHAR(255),
-    short_description TEXT,
+    description TEXT,
     slug VARCHAR(255),
     long_description_url VARCHAR(500), -- URL to Azure Blob Storage content
     category_id UUID,

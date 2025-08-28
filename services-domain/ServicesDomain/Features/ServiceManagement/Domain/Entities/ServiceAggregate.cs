@@ -1,5 +1,6 @@
 using SharedPlatform.Features.DomainPrimitives.Entities;
 using ServicesDomain.Features.ServiceManagement.Domain.ValueObjects;
+using ServicesDomain.Features.CategoryManagement.Domain.ValueObjects;
 
 namespace ServicesDomain.Features.ServiceManagement.Domain.Entities;
 
@@ -14,7 +15,11 @@ public sealed class ServiceAggregate : BaseAggregateRoot
 
     private ServiceAggregate()
     {
-        Service = Service.Create(ServiceTitle.From("Default Service"), ServiceDescription.From("Default Description"));
+        Service = Service.Create(
+            ServiceTitle.From("Default Service"), 
+            Description.From("Default Description"),
+            DeliveryMode.MobileService,
+            ServiceCategoryId.New());
         AdditionalMetadata = new List<ServiceMetadata>();
         Tags = new List<string>();
         LocalizedContent = new Dictionary<string, string>();

@@ -7,16 +7,16 @@ public sealed class ServiceDeletedEvent : BaseDomainEvent
 {
     public ServiceId ServiceId { get; }
     public ServiceTitle Title { get; }
-    public ServiceDescription Description { get; }
+    public Description Description { get; }
     public ServiceSlug Slug { get; }
-    public DateTime DeletedAt { get; }
+    public DateTimeOffset DeletedAt { get; }
 
-    public ServiceDeletedEvent(ServiceId serviceId, ServiceTitle title, ServiceDescription description, ServiceSlug slug)
-        : this(serviceId, title, description, slug, DateTime.UtcNow)
+    public ServiceDeletedEvent(ServiceId serviceId, ServiceTitle title, Description description, ServiceSlug slug)
+        : this(serviceId, title, description, slug, DateTimeOffset.UtcNow)
     {
     }
 
-    public ServiceDeletedEvent(ServiceId serviceId, ServiceTitle title, ServiceDescription description, ServiceSlug slug, DateTime deletedAt)
+    public ServiceDeletedEvent(ServiceId serviceId, ServiceTitle title, Description description, ServiceSlug slug, DateTimeOffset deletedAt)
     {
         ServiceId = serviceId;
         Title = title;

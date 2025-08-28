@@ -2,54 +2,41 @@ using SharedPlatform.Features.DomainPrimitives.ValueObjects;
 
 namespace ServicesDomain.Features.ServiceManagement.Domain.ValueObjects;
 
-public enum ServiceStatusType
+public sealed class PublishingStatus : BaseValueObject
 {
-    Draft = 0,
-    Active = 1,
-    Inactive = 2,
-    Published = 3,
-    Archived = 4,
-    Deleted = 5
-}
-
-public sealed class ServiceStatus : BaseValueObject
-{
-    public ServiceStatusType Value { get; private set; }
-
-    private ServiceStatus(ServiceStatusType value)
-    {
-        Value = value;
-    }
-
-    public static ServiceStatus Draft => new(ServiceStatusType.Draft);
-    public static ServiceStatus Active => new(ServiceStatusType.Active);
-    public static ServiceStatus Inactive => new(ServiceStatusType.Inactive);
-    public static ServiceStatus Published => new(ServiceStatusType.Published);
-    public static ServiceStatus Archived => new(ServiceStatusType.Archived);
-    public static ServiceStatus Deleted => new(ServiceStatusType.Deleted);
+    public static readonly string[] ValidValues = { "draft", "published", "archived" };
     
-    public static ServiceStatus From(ServiceStatusType value) => new(value);
-    public static ServiceStatus From(string value)
+    public string Value { get; private set; }
+
+    private PublishingStatus(string value)
     {
-        if (Enum.TryParse<ServiceStatusType>(value, true, out var status))
-            return new ServiceStatus(status);
+        if (string.IsNullOrWhiteSpace(value))
+            throw new ArgumentException("PublishingStatus cannot be null or empty", nameof(value));
         
-        throw new ArgumentException($"Invalid ServiceStatus: {value}", nameof(value));
+        var normalizedValue = value.Trim().ToLowerInvariant();
+        if (!ValidValues.Contains(normalizedValue))
+            throw new ArgumentException($"Invalid PublishingStatus: {value}. Valid values are: {string.Join(", ", ValidValues)}", nameof(value));
+        
+        Value = normalizedValue;
     }
 
-    public bool IsActive => Value == ServiceStatusType.Active;
-    public bool IsPublished => Value == ServiceStatusType.Published;
-    public bool IsDeleted => Value == ServiceStatusType.Deleted;
-    public bool IsArchived => Value == ServiceStatusType.Archived;
-    public bool IsDraft => Value == ServiceStatusType.Draft;
+    public static PublishingStatus Draft => new("draft");
+    public static PublishingStatus Published => new("published");
+    public static PublishingStatus Archived => new("archived");
+    
+    public static PublishingStatus From(string value) => new(value);
+
+    public bool IsDraft => Value == "draft";
+    public bool IsPublished => Value == "published";
+    public bool IsArchived => Value == "archived";
 
     protected override IEnumerable<object> GetEqualityComponents()
     {
         yield return Value;
     }
 
-    public static implicit operator ServiceStatusType(ServiceStatus status) => status.Value;
-    public static implicit operator ServiceStatus(ServiceStatusType value) => From(value);
+    public static implicit operator string(PublishingStatus status) => status.Value;
+    public static implicit operator PublishingStatus(string value) => From(value);
     
-    public override string ToString() => Value.ToString();
+    public override string ToString() => Value;
 }

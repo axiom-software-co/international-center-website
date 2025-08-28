@@ -520,67 +520,30 @@
   │   ├── ServiceManagement/                  # Core service domain
   │   │   ├── Domain/
   │   │   │   ├── Entities/
-  │   │   │   │   ├── Service.cs
-  │   │   │   │   ├── ServiceMetadata.cs
-  │   │   │   │   └── ServiceAggregate.cs
+  │   │   │   │   └── Service.cs              # Main aggregate root with SharedPlatform integration
   │   │   │   ├── ValueObjects/
   │   │   │   │   ├── ServiceId.cs
   │   │   │   │   ├── ServiceTitle.cs
-  │   │   │   │   ├── ServiceDescription.cs
-  │   │   │   │   ├── ServiceStatus.cs
-  │   │   │   │   └── ServiceSlug.cs
-  │   │   │   ├── Events/
-  │   │   │   │   ├── ServiceCreatedEvent.cs
-  │   │   │   │   ├── ServiceUpdatedEvent.cs
-  │   │   │   │   ├── ServicePublishedEvent.cs
-  │   │   │   │   ├── ServiceArchivedEvent.cs
-  │   │   │   │   └── ServiceDeletedEvent.cs
-  │   │   │   ├── Specifications/
-  │   │   │   │   ├── ServiceSpecifications.cs
-  │   │   │   │   ├── ActiveServiceSpecification.cs
-  │   │   │   │   ├── FeaturedServiceSpecification.cs
-  │   │   │   │   ├── PublishedServiceSpecification.cs
-  │   │   │   │   └── ServiceSearchSpecification.cs
-  │   │   │   ├── BusinessRules/
-  │   │   │   │   ├── ServiceBusinessRules.cs
-  │   │   │   │   ├── ServiceValidationRules.cs
-  │   │   │   │   ├── ServicePublishingRules.cs
-  │   │   │   │   └── ServiceArchivalRules.cs
+  │   │   │   │   ├── Description.cs          # Renamed from ShortDescription for schema clarity
+  │   │   │   │   ├── PublishingStatus.cs     # Enum-based status with validation
+  │   │   │   │   ├── ServiceSlug.cs
+  │   │   │   │   ├── LongDescriptionUrl.cs
+  │   │   │   │   └── DeliveryMode.cs
   │   │   │   └── Repository/
-  │   │   │       ├── IServiceRepository.cs
-  │   │   │       └── ServiceRepositoryBase.cs
-  │   │   └── ServiceManagementTests.cs       # Domain tests
+  │   │   │       └── IServiceRepository.cs   # Repository interface
   │   ├── CategoryManagement/                 # Category domain
   │   │   ├── Domain/
   │   │   │   ├── Entities/
-  │   │   │   │   ├── ServiceCategory.cs
-  │   │   │   │   └── CategoryHierarchy.cs
-  │   │   │   ├── ValueObjects/
-  │   │   │   │   ├── ServiceCategoryId.cs
-  │   │   │   │   ├── CategoryName.cs
-  │   │   │   │   └── CategoryPath.cs
-  │   │   │   ├── Events/
-  │   │   │   │   ├── CategoryCreatedEvent.cs
-  │   │   │   │   ├── CategoryUpdatedEvent.cs
-  │   │   │   │   └── CategoryDeletedEvent.cs
-  │   │   │   ├── Specifications/
-  │   │   │   │   ├── CategorySpecifications.cs
-  │   │   │   │   └── ActiveCategorySpecification.cs
-  │   │   │   ├── BusinessRules/
-  │   │   │   │   └── CategoryBusinessRules.cs
-  │   │   │   └── Repository/
-  │   │   │       ├── IServiceCategoryRepository.cs
-  │   │   │       └── CategoryRepositoryBase.cs
-  │   │   └── CategoryManagementTests.cs      # Domain tests
-  │   ├── GetService/                         # Public API: Get single service
-  │   │   ├── GetServiceQuery.cs
-  │   │   ├── GetServiceHandler.cs
-  │   │   ├── GetServiceEndpoint.cs           # Minimal API endpoint
-  │   │   ├── GetServiceResponse.cs
-  │   │   ├── GetServiceRepository.cs         # Dapper implementation
-  │   │   ├── GetServiceCaching.cs
-  │   │   ├── GetServiceValidation.cs
-  │   │   └── GetServiceTests.cs              # Complete feature tests
+  │   │   │   │   ├── ServiceCategory.cs      # Full SharedPlatform integration (BaseEntity, IAuditable, ISoftDeletable)
+  │   │   │   │   └── FeaturedCategory.cs     # Medical-grade audit entity
+  │   │   │   └── ValueObjects/
+  │   │   │       └── ServiceCategoryId.cs   # Consistent value object pattern
+  │   ├── GetService/                         # Public API: Get single service [IMPLEMENTED - TDD GREEN]
+  │   │   ├── GetServiceQuery.cs              # CQRS query with validation
+  │   │   ├── GetServiceHandler.cs            # Handler with medical audit, caching, LoggerMessage delegates
+  │   │   ├── GetServiceEndpoint.cs           # Minimal API endpoint with error handling
+  │   │   ├── GetServiceResponse.cs           # Response DTO
+  │   │   └── GetServiceValidator.cs          # FluentValidation
   │   ├── GetServices/                        # Public API: List services
   │   │   ├── GetServicesQuery.cs
   │   │   ├── GetServicesHandler.cs
@@ -698,16 +661,24 @@
   ├── Shared/
   │   ├── Infrastructure/
   │   │   ├── Data/
-  │   │   │   ├── ServicesDbContext.cs        # EF Core context
-  │   │   │   ├── IServicesDbContext.cs
-  │   │   │   ├── ServicesConfiguration.cs    # Entity configurations
-  │   │   │   ├── DapperConnectionFactory.cs  # Dapper factory
-  │   │   │   └── DatabaseMigrations.cs
+  │   │   │   ├── Configurations/              # EF Core .NET 9 configuration patterns
+  │   │   │   │   ├── ServiceConfiguration.cs  # Main service entity config
+  │   │   │   │   ├── ServiceAuditConfiguration.cs # Medical audit config
+  │   │   │   │   ├── ServiceCategoryConfiguration.cs # Category entity config
+  │   │   │   │   ├── ServiceCategoryAuditConfiguration.cs # Category audit config
+  │   │   │   │   └── FeaturedCategoryConfiguration.cs # Featured category config
+  │   │   │   ├── ServicesDbContext.cs        # EF Core context with medical audit and SHA256 hashing
+  │   │   │   ├── IServicesDbContext.cs       # Context interface
+  │   │   │   ├── ServiceAudit.cs             # Medical audit entity (matches services_audit table)
+  │   │   │   ├── ServiceCategoryAudit.cs     # Category audit entity (matches service_categories_audit table)
+  │   │   │   ├── ServicesConfiguration.cs    # Configuration registration
+  │   │   │   ├── DapperConnectionFactory.cs  # Dapper factory for public APIs
+  │   │   │   └── DatabaseMigrations.cs       # Migration management
   │   │   ├── Repositories/
-  │   │   │   ├── EfServiceRepository.cs      # EF Core for admin
-  │   │   │   ├── DapperServiceRepository.cs  # Dapper for public
-  │   │   │   ├── EfCategoryRepository.cs
-  │   │   │   └── DapperCategoryRepository.cs
+  │   │   │   ├── EfServiceRepository.cs      # EF Core for admin APIs with ConfigureAwait patterns
+  │   │   │   ├── DapperServiceRepository.cs  # Dapper for public APIs (future)
+  │   │   │   ├── EfCategoryRepository.cs     # Category EF Core repository (future)
+  │   │   │   └── DapperCategoryRepository.cs # Category Dapper repository (future)
   │   │   ├── Services/
   │   │   │   ├── ServiceCacheService.cs
   │   │   │   ├── ServiceNotificationService.cs
@@ -773,4 +744,39 @@
   ├── appsettings.Testing.json
   ├── appsettings.Production.json
   ├── ServicesDomain.csproj
-  └── Program.cs                              # Unified API with feature flags
+  ├── Program.cs                              # Unified API with feature flags
+  └── SERVICES-SCHEMA.md                     # Database schema specification
+
+  ServicesDomain.Tests/                       # Separate test project for cohesion
+  ├── Features/                              # Mirror main project structure
+  │   ├── GetService/
+  │   │   └── GetServiceTests.cs             # Comprehensive unit tests (14 passing)
+  │   ├── ServiceManagement/
+  │   │   └── ServiceManagementTests.cs      # Domain tests
+  │   ├── CategoryManagement/
+  │   │   └── CategoryManagementTests.cs     # Category domain tests
+  │   ├── GetServiceBySlug/
+  │   │   └── GetServiceBySlugTests.cs
+  │   ├── GetServices/
+  │   │   └── GetServicesTests.cs
+  │   ├── GetServiceCategories/
+  │   │   └── GetCategoriesTests.cs
+  │   ├── SearchServices/
+  │   │   └── SearchServicesTests.cs
+  │   ├── CreateService/
+  │   │   └── CreateServiceTests.cs
+  │   ├── UpdateService/
+  │   │   └── UpdateServiceTests.cs
+  │   ├── DeleteService/
+  │   │   └── DeleteServiceTests.cs
+  │   ├── BulkOperations/
+  │   │   └── BulkOperationTests.cs
+  │   ├── PublishServices/
+  │   │   └── PublishTests.cs
+  │   ├── ArchiveServices/
+  │   │   └── ArchiveTests.cs
+  │   └── HealthChecks/
+  │       └── HealthCheckTests.cs
+  ├── Shared/
+  │   └── TestFixtures/                      # Shared test utilities (future)
+  └── ServicesDomain.Tests.csproj            # Test-specific dependencies

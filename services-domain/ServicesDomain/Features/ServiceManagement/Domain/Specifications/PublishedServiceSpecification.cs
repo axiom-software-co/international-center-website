@@ -9,7 +9,7 @@ public sealed class PublishedServiceSpecification : BaseSpecification<Service>
 {
     public override Expression<Func<Service, bool>> ToExpression()
     {
-        return service => service.Status.Value == ServiceStatusType.Published && service.PublishedAt != null;
+        return service => service.PublishingStatus.Value == "published" && !service.IsDeleted;
     }
 
     public static PublishedServiceSpecification Create() => new();

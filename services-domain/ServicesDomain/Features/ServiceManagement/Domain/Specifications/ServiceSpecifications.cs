@@ -7,8 +7,8 @@ namespace ServicesDomain.Features.ServiceManagement.Domain.Specifications;
 
 public static class ServiceSpecifications
 {
-    public static BaseSpecification<Service> ByStatus(ServiceStatusType status)
-        => new ExpressionSpecification<Service>(s => s.Status == status);
+    public static BaseSpecification<Service> ByPublishingStatus(PublishingStatus status)
+        => new ExpressionSpecification<Service>(s => s.PublishingStatus == status);
 
     public static BaseSpecification<Service> ByCategory(ServiceCategoryId categoryId)
         => new ExpressionSpecification<Service>(s => s.CategoryId == categoryId);
@@ -20,14 +20,14 @@ public static class ServiceSpecifications
         => new ExpressionSpecification<Service>(s => s.Id.Equals(serviceId));
 
     public static BaseSpecification<Service> Featured()
-        => new ExpressionSpecification<Service>(s => s.IsFeatured);
+        => new ExpressionSpecification<Service>(s => s.PublishingStatus.Value == "published");
 
     public static BaseSpecification<Service> NotDeleted()
-        => new ExpressionSpecification<Service>(s => !s.Status.IsDeleted);
+        => new ExpressionSpecification<Service>(s => !s.IsDeleted);
 
     public static BaseSpecification<Service> PubliclyVisible()
         => new ExpressionSpecification<Service>(s => 
-            s.Status.IsActive || s.Status.IsPublished);
+            s.PublishingStatus.Value == "published" && !s.IsDeleted);
 
     public static BaseSpecification<Service> CreatedBetween(DateTime from, DateTime to)
         => new ExpressionSpecification<Service>(s => 
@@ -39,7 +39,7 @@ public static class ServiceSpecifications
 
     public static BaseSpecification<Service> WithExternalUrl()
         => new ExpressionSpecification<Service>(s => 
-            !string.IsNullOrEmpty(s.ExternalUrl));
+            s.LongDescriptionUrl != null && !string.IsNullOrEmpty(s.LongDescriptionUrl.Value));
 
     public static BaseSpecification<Service> WithImage()
         => new ExpressionSpecification<Service>(s => 

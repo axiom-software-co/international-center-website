@@ -1,3 +1,5 @@
+using ServicesDomain.Features.GetService;
+
 namespace ServicesDomain.Shared.Extensions;
 
 public static class WebApplicationExtensions 
@@ -6,6 +8,10 @@ public static class WebApplicationExtensions
     {
         // Basic pipeline configuration - minimal implementation for compilation
         app.UseRouting();
+        
+        // Map GetService endpoints - TDD GREEN phase
+        app.MapGetServiceEndpoints();
+        
         return app;
     }
 }
